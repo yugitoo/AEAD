@@ -1,5 +1,5 @@
 ---
-title: "Trabalho de Aplicação"
+title: "Trabalho de Aplicação - Rio São Franscisco"
 author: 'Yugo Oyama NUSP: 9297784'
 date: "14/11/2021"
 output: pdf_document
@@ -36,27 +36,61 @@ O dataframe dados_treino contem 1717 linhas e 83 colunas. Cada linha contêm med
 
 ### Estações
 
-O dataframe estações contém informações sobre cada uma das estações que aparecem no dataframe treino_sf. Essas informações estão disponibilizadas apenas a título de curiosidade e não devem ser utilizadas para construir os modelos preditivos. Por exemplo, latitude e longitude, além do tipo da estação (fluviométrica ou pluviométrica) e outros detalhes técnicos de cada uma delas. A tabela abaixo mostra 5 das estações.
+O dataframe estações contém informações sobre cada uma das estações que aparecem no dataframe treino_sf. Essas informações estão disponibilizadas apenas a título de curiosidade e não devem ser utilizadas para construir os modelos preditivos. Por exemplo, latitude e longitude, além do tipo da estação (fluviométrica ou pluviométrica) e outros detalhes técnicos de cada uma delas.
 
 ### Objetivo
 
 O objetivo desta análise é propor um modelo que consiga realizar boas predições para as medições de vazão na estação 46998000 (coluna Y), dadas as medições tomadas nas estações do sistema na semana anterior (demais colunas). 
+
+### Técnicas
+
+Para esse projeto serão usados modelos lineares com regularização, modelos baseados em árvores, e redes neurais.  
+
+
+
+Para comparar os modelos entre si,será utilizado o erro absoluto médio (MAE) e ao final de cada método testado, será adicionado o resultado a uma tabela comparativa.
+
 
 ### Bibliotecas 
 ```{r}
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
 ```
 
-### Lasso?
-Vamos tentar rodar um LASSO
 ```{r}
+# Definindo semente e porcentagem da amostra de treino e de validação.
 set.seed(12345)
-X <- model.matrix(Y ~ .,
-                  data = treino_sf)[,-1] # X deve ser uma matrix (-1 para retirar o intercepto)
-  
+
 # separando 75% dos dados para treino
 ids <- sample(nrow(treino_sf), size = .75*nrow(treino_sf), replace = FALSE) 
 
+```
+
+
+### Modelo simples
+```{r}
+reg_simples<- lm(Y~., data = treino_sf[ids])
+
+```
+
+```{r}
+# saida mostra a prob de sair determinado valor
+
+y_reg_simples_dentro <- predict(reg_simples, newx = X[ids,],
+                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
+
+y_reg_simples_fora <- predict(lasso, newx = X[-ids,],
+                          s = cv_lasso$lambda.min) # valor predito fora da amostra
+```
+
+
+### Lasso
+Vamos rodar um LASSO
+
+```{r}
+# X deve ser uma matrix (-1 para retirar o intercepto)
+X <- model.matrix(Y ~ .,
+                  data = treino_sf)[,-1]
+  
 
 cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
                       lambda = c(0.01, 0.1, 1, 2, 10, 100))
@@ -70,28 +104,32 @@ lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = 10)
 ```
 
 ```{r}
-y_lasso_dentro <- predict(lasso, newx = X[ids,],
-                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
 # saida mostra a prob de sair determinado valor
 
+y_lasso_dentro <- predict(lasso, newx = X[ids,],
+                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
+
+y_lasso_fora <- predict(lasso, newx = X[-ids,],
+                          s = cv_lasso$lambda.min) # valor predito fora da amostra
 ```
 
 ### Avaliação dos modelos
 
-Para avaliar os modelos, será utilizado o erro absoluto médio (MAE).
 
 ```{r}
-(lasso_erro_dentro <- mean(y_lasso_dentro - treino_sf$Y[ids]))
+(lasso_erro_dentro <- mean(abs(y_lasso_dentro - treino_sf$Y[ids])))
 
-# (lasso_erro_fora <- mean((y_lasso_fora - treino_sf[-ids])))
+(lasso_erro_fora <- mean(abs((y_lasso_fora - treino_sf$Y[-ids]))))
 ```
+
 
 ```{r}
-# resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
-# names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
+names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
 
-# resultados
+resultados
 ```
+
 
 
 ### Submissão dos resultados

@@ -79,7 +79,7 @@ X <- model.matrix(y_treino ~ .,
                   data = db_digitos)[,-1] # X deve ser uma matrix
 
 # separando 75% dos dados para treino
-ids <- sample(nrow(db_digitos), size = .003*nrow(db_digitos), replace = FALSE) 
+ids <- sample(nrow(db_digitos), size = .005*nrow(db_digitos), replace = FALSE) 
 
 
 cv_lasso <- cv.glmnet(X[ids,], db_digitos$y_treino[ids], alpha = 1,
@@ -100,8 +100,10 @@ lasso <- glmnet(X[ids,], db_digitos$y_treino[ids], alpha = 1, lambda = 1, family
 
 ```{r}
 y_lasso_dentro <- predict(lasso, newx = X[ids,],
-                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
+                          s = cv_lasso$lambda.min, type = "class") # valor predito dentro da amostra
 # saida mostra a prob de sair determinado valor
+
+# algo esta estranho, pq todas as probabilidades estao iguais
 
 ```
 
