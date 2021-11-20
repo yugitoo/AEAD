@@ -1,0 +1,107 @@
+---
+title: "Trabalho de Aplicação"
+author: 'Yugo Oyama NUSP: 9297784'
+date: "14/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução
+
+Este trabalho consiste na aplicação de técnicas estatísticas abordadas no curso de Estatística em Altas Dimensões - 2021 em dois bancos de dados que serão explicados detalhadamente mais a frente.
+
+## Chuva e vazão no Rio São Francisco
+
+### Dados
+
+Os dados armazenados no arquivo dados_rio_sf.rdata são referentes a medições de vazão e chuva em estações localizadas na região do rio São Francisco.
+
+```{r}
+load("dados_rio_sf.rdata")
+```
+
+Dentro deste arquivo, há três variáveis:
+
+treino_sf: conjunto de treino com as medições de vazão e precipitação nas estações consideradas;
+estacoes: com informações sobre as estações que coletam os dados;
+teste_sf: conjundo com dados que serão usados para avaliar a performance dos modelos preditivos;
+
+
+### Dados de treinamento
+
+O dataframe dados_treino contem 1717 linhas e 83 colunas. Cada linha contêm medições semanais de vazão em diferentes estações fluviométricas sobre o rio São Francisco e de chuva em estações pluviométricas em regiões próximas do rio. Se a estação é fluviométrica, o dado armazenado é a vazão média registrada na semana correspondente. Caso a estação seja pluviométrica, o dado registrado é a chuva acumulada naquela semana. A primeira coluna, chamada Y, contém a medida de vazão na estação fluviométrica de código 46998000, que corresponde à estação em que se tem interesse em fazer previsão. A vazão na coluna Y corresponde à medição na semana seguinte às demais medições da mesma linha. 
+
+### Estações
+
+O dataframe estações contém informações sobre cada uma das estações que aparecem no dataframe treino_sf. Essas informações estão disponibilizadas apenas a título de curiosidade e não devem ser utilizadas para construir os modelos preditivos. Por exemplo, latitude e longitude, além do tipo da estação (fluviométrica ou pluviométrica) e outros detalhes técnicos de cada uma delas. A tabela abaixo mostra 5 das estações.
+
+### Objetivo
+
+O objetivo desta análise é propor um modelo que consiga realizar boas predições para as medições de vazão na estação 46998000 (coluna Y), dadas as medições tomadas nas estações do sistema na semana anterior (demais colunas). 
+
+### Bibliotecas 
+```{r}
+library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
+```
+
+### Lasso?
+Vamos tentar rodar um LASSO
+```{r}
+set.seed(12345)
+X <- model.matrix(Y ~ .,
+                  data = treino_sf)[,-1] # X deve ser uma matrix (-1 para retirar o intercepto)
+  
+# separando 75% dos dados para treino
+ids <- sample(nrow(treino_sf), size = .75*nrow(treino_sf), replace = FALSE) 
+
+
+cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
+                      lambda = c(0.01, 0.1, 1, 2, 10, 100))
+
+cv_lasso$lambda.min
+```
+
+O lambda que minimiza o erro da validacao cruzada é 10. Usemos-o então.
+```{r}
+lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = 10)
+```
+
+```{r}
+y_lasso_dentro <- predict(lasso, newx = X[ids,],
+                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
+# saida mostra a prob de sair determinado valor
+
+```
+
+### Avaliação dos modelos
+
+Para avaliar os modelos, será utilizado o erro absoluto médio (MAE).
+
+```{r}
+(lasso_erro_dentro <- mean(y_lasso_dentro - treino_sf$Y[ids]))
+
+# (lasso_erro_fora <- mean((y_lasso_fora - treino_sf[-ids])))
+```
+
+```{r}
+# resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
+# names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+
+# resultados
+```
+
+
+### Submissão dos resultados
+
+O dataframe teste_sf está estruturado no mesmo formato que o dataframe treino_sf. A única diferença é que ele não tem a coluna Y, que é aquela que seu modelo deve prever. Uma vez que você fizer a predição para os dados de teste, utilize o código abaixo para criar o arquivo para submissão e avalição. Para que funcione, você deve salvar as predições da vazão em um vetor númerico chamado predicoes, que deve conter 191 elementos. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Atenção: arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
+
+```{r}
+# write.csv(data.frame(y_pred = predicoes), file="sf_nusp_meunome.csv")
+
+```
+
+A medida utilizada para a avaliação dos resultados será o erro absoluto médio.
+

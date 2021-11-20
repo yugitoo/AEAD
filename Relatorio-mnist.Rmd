@@ -1,0 +1,227 @@
+---
+title: "Trabalho de Aplicação"
+author: 'Yugo Oyama NUSP: 9297784'
+date: "14/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução
+
+Este trabalho consiste na aplicação de técnicas estatísticas abordadas no curso de Estatística em Altas Dimensões - 2021 em dois bancos de dados que serão explicados detalhadamente mais a frente.
+
+## Dados de digitos manuscritos
+
+### Bibliotecas 
+```{r}
+library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
+```
+
+
+### Carregando os Bancos de dados
+
+```{r}
+load("dados_mnist.rdata")
+```
+
+
+x_treino: matriz com as 60000 imagens do conjunto de treino;  
+y_treino: vetor com os reais valores dos dígitos escritos nas imagens do conjunto de treino (etiquetas);  
+
+Cada linha da matriz x_treino é uma imagem. Aqui, cada imagem está representada como um vetor de dimensao 1x784. Cada coluna indica o tom de cinza do respectivo pixel da imagem (entre 0 - preto e 255 - branco). Para visualizar estes dados como imagem, primeiro você deve transformar a linha com 784 colunas em uma matriz 28x28 e fazer a seguinte operação para rotacionar a figura:
+
+```{r}
+matriz <- matrix(x_treino[1,], ncol = 28, byrow = TRUE)
+
+imagem <- t(apply(matriz, 2, rev))
+```
+
+Em seguida, para visualizá-la graficamente, utilize o código abaixo.
+
+```{r}
+image(1:28, 1:28, imagem, col = gray((0:255)/255), 
+        xaxt = 'n', yaxt = 'n', xlab="", ylab="", 
+        main = (y_treino[1]))
+```
+
+O código e a figura abaixo mostram 36 figuras selecionadas aleatoriamente e suas etiquetas correspondentes.
+
+```{r}
+par(mfcol = c(6,6))
+par(mar = c(0, 0, 2, 0), xaxs = 'i', yaxs = 'i') 
+
+set.seed(12)
+
+indices <- sample(nrow(x_treino), 36)
+for (idx in indices) {
+  im <- matrix(x_treino[idx,], nrow=28, byrow = TRUE)
+  im <- t(apply(im, 2, rev))
+  image(1:28, 1:28, im, col = gray((0:255)/255), 
+        xaxt = 'n', yaxt = 'n', xlab="", ylab="", 
+        main = (y_treino[idx]))
+}
+```
+Lasso norma 1 e ridge norma 2
+Lasso selecao de var
+regularizacao, pq soma lambda*norma ao erro dentro
+
+
+### Lasso?
+Vamos tentar rodar um LASSO com validação cruzada no conjunto de treino para definir o parâmetro lambda de penalização.
+```{r}
+db_digitos <- data.frame(y_treino=y_treino,x_treino)
+
+set.seed(12345)
+X <- model.matrix(y_treino ~ .,
+                  data = db_digitos)[,-1] # X deve ser uma matrix
+
+# separando 75% dos dados para treino
+ids <- sample(nrow(db_digitos), size = .003*nrow(db_digitos), replace = FALSE) 
+
+
+cv_lasso <- cv.glmnet(X[ids,], db_digitos$y_treino[ids], alpha = 1,
+                      lambda = c(0.01, 0.1, 1, 2, 10, 100))
+
+cv_lasso$lambda.min
+```
+
+
+```{r}
+plot(cv_lasso, cex.lab = 1.3)
+```
+
+O lambda que minimiza o erro da validacao cruzada eh 0.01. Usemos-o então.
+```{r}
+lasso <- glmnet(X[ids,], db_digitos$y_treino[ids], alpha = 1, lambda = 1, family = "multinomial", )
+```
+
+```{r}
+y_lasso_dentro <- predict(lasso, newx = X[ids,],
+                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
+# saida mostra a prob de sair determinado valor
+
+```
+
+```{r}
+# labels
+# coluna dos valores previstos com maior prob
+pred_labels_tr <- apply(y_lasso_dentro,1,which.max)
+```
+
+```{r}
+# comparativo: observado vs predito (dentro da amostra)
+(tabela_tr <- table(predito = pred_labels_tr, observado = y_treino[ids]))
+
+```
+
+
+```{r}
+#
+y_lasso_fora <- predict(lasso, newx = X[-ids,],
+                        s = cv_lasso$lambda.min) # valor predito fora da amostra
+
+# y <- aluguel$Price
+```
+
+
+<!-- ```{r} -->
+<!-- # labels -->
+<!-- pred_labels_tr <- ifelse(pred_probs_tr > 0.5, 1, 0) -->
+<!-- # para o calculo alternativo funcionar, substituir 1 e 0 por Yes e No -->
+
+<!-- # comparativo: observado vs predito (dentro da amostra) -->
+<!-- (tabela_tr <- table(predito = pred_labels_tr, observado = dados_tr$default)) -->
+
+<!-- # precisao dentro da amostra -->
+<!-- (prec_dentro <- (tabela_tr[1, 1] + tabela_tr[2, 2]) / nrow(dados_tr)) -->
+
+<!-- # precisao dentro da amostra (calculo alternativo) -->
+<!-- # (prec_dentro <- mean(pred_labels_tr == dados_tr$default)) -->
+
+<!-- # probs fora da amostra -->
+<!-- pred_probs_tst <- predict(fit, dados_val, type = "response") -->
+<!-- # labels -->
+<!-- pred_labels_tst <- ifelse(pred_probs_tst > 0.5, 1, 0) -->
+
+<!-- # comparativo: observado vs predito (fora da amostra) -->
+<!-- (tabela_tst <- table(predito = pred_labels_tst, observado = dados_val$default)) -->
+
+<!-- # precisao fora da amostra -->
+<!-- (prec_fora <- (tabela_tst[1, 1] + tabela_tst[2, 2]) / nrow(dados_val)) -->
+
+<!-- # precisao dentro da amostra (calculo alternativo) -->
+<!-- # (prec_fora <- mean(pred_labels_tst == digitos_tst$digito) * 100) -->
+
+<!-- # salvar resultados em um dataframe -->
+<!-- resultados <- data.frame(modelo = c("Reg. Logística", "Naive Bayes", "kNN"), -->
+<!--                          prec_dentro = NA, -->
+<!--                          prec_fora = NA) -->
+
+<!-- resultados[resultados$modelo == "Reg. Logística", 2:3] <- c(prec_dentro, prec_fora) -->
+<!-- resultados -->
+
+<!-- ``` -->
+
+
+Acuracia/Precisao (confirmar nomes)
+
+algoritmo
+se acertou, 1. se errou, 0
+soma e divide por nrow
+
+```{r}
+# acertou <- ifelse (y_treino==predito,1,0)
+# acuracia <- sum(acertou)/nrow(X)
+```
+
+
+
+```{r}
+# (lasso_erro_dentro <- mean((y_lasso_dentro - y_treino[ids])^2))
+# 
+# (lasso_erro_fora <- mean((y_lasso_fora - y_treino[-ids])^2))
+```
+
+
+```{r}
+# resultados[which(resultados$modelo=="lasso"), 2:3] = c(lasso_erro_dentro, lasso_erro_fora)
+# resultados
+
+
+```
+
+
+### Avaliação dos modelos
+
+Para avaliar os modelos, será utilizada a acurácia (erro total de classificação).
+
+
+
+1- Modelos lineares com regularização 
+
+2- Modelos baseados em árvores (bagging, florestas aleatórias ou boosting) 
+
+3- Redes neurais 
+
+
+
+### Conjunto de teste
+
+Posteriormente, vamos disponibilizar um conjunto de dados de teste, que estará organizado no mesmo formato que o conjunto x_treino. Entretanto, para este conjunto de dados de teste, você não terá acesso às verdadeiras etiquetas de cada imagem. Sua tarefa é estimar um modelo preditivo, realizar predições para as observações do conjunto de teste e submeter um arquivo .csv com o resultado. A medida utilizada para a avaliação dos resultados será a acurácia, isto é, a proporção de imagens corretamente classificadas.
+Submissão dos resultados
+
+Em posse do arquivo de dados de teste, use o código abaixo para criar o arquivo para submissão dos seus resultados. Para que funcione, você deverá salvar a predição das imagens de teste em um vetor chamado predicoes. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
+
+
+
+Submissão dos resultados
+
+Em posse do arquivo de dados de teste, use o código abaixo para criar o arquivo para submissão dos seus resultados. Para que funcione, você deverá salvar a predição das imagens de teste em um vetor chamado predicoes. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
+
+```{r}
+# write.csv(data.frame(y_pred = predicoes), file="mnist_9297784_yugooyama.csv")
+
+```
