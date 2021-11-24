@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Introdução
@@ -54,53 +54,95 @@ Para comparar os modelos entre si,será utilizado o erro absoluto médio (MAE) e
 ### Bibliotecas 
 ```{r}
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
+library(dplyr) # manipular tabelas e banco de dados
 ```
 
 ```{r}
 # Definindo semente e porcentagem da amostra de treino e de validação.
-set.seed(12345)
+set.seed(1234)
 
 # separando 75% dos dados para treino
-ids <- sample(nrow(treino_sf), size = .75*nrow(treino_sf), replace = FALSE) 
+ids <- sample(nrow(treino_sf), size = .80*nrow(treino_sf), replace = FALSE) 
 
 ```
 
-
-### Modelo simples
-```{r}
-reg_simples<- lm(Y~., data = treino_sf[ids])
-
-```
 
 ```{r}
-# saida mostra a prob de sair determinado valor
+# X matriz com variaveis preditoras (-1 para retirar o intercepto)
+X <- model.matrix(Y ~ .,
+                  data = treino_sf)[,-1]
+  
 
-y_reg_simples_dentro <- predict(reg_simples, newx = X[ids,],
-                          s = cv_lasso$lambda.min) # valor predito dentro da amostra
-
-y_reg_simples_fora <- predict(lasso, newx = X[-ids,],
-                          s = cv_lasso$lambda.min) # valor predito fora da amostra
 ```
 
+### Modelo Média
+
+De forma a ter uma base para comparar, foi construído um modelo simples que considera todos os valores da estação 46998000, calcula a média e sempre preve que a próxima medição será a média.
+
+```{r}
+media <- mean(X[,"`46998000`"])
+y_media_dentro <- rep(media,nrow(X[ids,]))
+
+y_media_fora <- rep(media,nrow(X[-ids,]))
+
+(media_erro_dentro <- mean(abs(y_media_dentro - treino_sf$Y[ids])))
+
+(media_erro_fora <- mean(abs((y_media_fora - treino_sf$Y[-ids]))))
+
+```
+
+```{r}
+resultados <- data.frame("media",media_erro_dentro, media_erro_fora)
+names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+
+resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
+resultados
+
+```
+
+<!-- ### Modelo Linear -->
+<!-- ```{r} -->
+<!-- reg_simples<- lm(Y~., data = treino_sf[ids,]) -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- y_lm_dentro <- predict(reg_simples, newx = X[ids,]) # valor predito dentro da amostra -->
+
+<!-- y_lm_fora <- predict(reg_simples, newx = X[-ids,]) # valor predito fora da amostra -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- (lasso_erro_dentro <- mean(abs(y_lm_dentro - treino_sf$Y[ids]))) -->
+
+<!-- (lasso_erro_fora <- mean(abs(y_lm_fora - treino_sf$Y[-ids]))) -->
+<!-- ``` -->
 
 ### Lasso
 Vamos rodar um LASSO
 
 ```{r}
-# X deve ser uma matrix (-1 para retirar o intercepto)
-X <- model.matrix(Y ~ .,
-                  data = treino_sf)[,-1]
-  
-
 cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
-                      lambda = c(0.01, 0.1, 1, 2, 10, 100))
+                      lambda = c(0.01, 0.1, 1, 2, 10, 25, 50, 75, 100))
+# cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
+#                       nlambda=500)
 
 cv_lasso$lambda.min
 ```
 
 O lambda que minimiza o erro da validacao cruzada é 10. Usemos-o então.
 ```{r}
-lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = 10)
+lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = cv_lasso$lambda.min)
+```
+
+```{r}
+saveRDS(lasso, "sf_lasso.rds")
+```
+
+```{r}
+readRDS("sf_lasso.rds")
 ```
 
 ```{r}
@@ -113,8 +155,6 @@ y_lasso_fora <- predict(lasso, newx = X[-ids,],
                           s = cv_lasso$lambda.min) # valor predito fora da amostra
 ```
 
-### Avaliação dos modelos
-
 
 ```{r}
 (lasso_erro_dentro <- mean(abs(y_lasso_dentro - treino_sf$Y[ids])))
@@ -124,12 +164,137 @@ y_lasso_fora <- predict(lasso, newx = X[-ids,],
 
 
 ```{r}
-resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
-names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+# resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
+# names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+# typeof(resultados[,2])
+resultados <- rbind(resultados,data.frame(modelo="lasso",erro_dentro=lasso_erro_dentro, erro_fora=lasso_erro_fora))
+resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 
-resultados
 ```
 
+
+
+### Modelo de Árvores
+
+Em florestas aleatorias temos interpretabilidade.
+
+### Redes neurais
+
+Foi utilizada a função de ativação ReLu ao invés da sigmoid por ser computacionalmente mais rápida.
+Vamos considerar uma estrutura simples com apenas uma camada oculta.
+Vamos considerar 41 unidades na camada oculta, por ser 50% da quantidade de camadas de entrada.
+
+```{r}
+# Rede Neural -------------------------------------------------------------
+library(keras)
+
+# primeiro passo: definir a estrutura que descreve a rede neural
+# vamos considerar uma rede com uma unica camada oculta
+# contendo 50 unidades e funcao de ativacao ReLU
+# dropout layer de 40%
+# a ultima camada tem somente uma unidade
+
+modelo_rn <- keras_model_sequential() %>%
+  layer_dense(units = 41, # numero de unidades
+              activation = "relu", # funcao de ativacao
+              input_shape = ncol(X)) %>% # dimensao da entrada
+  layer_dropout(rate = 0.4) %>% # taxa de nos nos suprime em cada etapa
+  layer_dense(units = 1) # camadas de saida com uma unica unidade pq eh um modelo de regressao
+
+modelo_rn
+```
+
+
+```{r}
+# segundo passo: especificacoes que controlam o algoritmo de estimacao
+modelo_rn %>%
+  compile(loss = "mse",   # funcao de custo
+          optimizer = optimizer_rmsprop(),  # otimizador
+          metrics = list("mean_absolute_error"))   # metrica para avaliar o erro
+# a funcao compile() nao muda a variavel R, mas
+# comunica as especificacoes para a instancia
+# python correspondente que foi criada
+```
+
+<!-- ```{r} -->
+<!-- callback <- EarlyStopping( -->
+<!--     monitor="val_loss", # erro a ser monitorado -->
+<!--     min_delta=0, # diminuicao de erro minima -->
+<!--     patience=10, # numero de vezes toleradas sem diminuicao do erro -->
+<!--     verbose=0, -->
+<!--     mode="auto", -->
+<!--     baseline=None, -->
+<!--     restore_best_weights=False, -->
+<!-- ) -->
+
+<!-- ``` -->
+
+
+
+```{r}
+# terceiro passo: ajustar o modelo (estimar os parametros)
+history <- modelo_rn %>%
+  fit(X[ids,], # preditoras de treino    dados de entrada
+      treino_sf$Y[ids],  # resposta de treino
+      batch_size = 32, # quantas observacoes escolhidas aleatoriamentes
+                       # em cada passo do SGD
+      epochs = 1500, # uma epoca e' numero de passos do SGD 1500
+                     # para processar todos dados de treino
+                     # nesse caso, cada epoca tem
+                     # length(y[-ids_teste])/32 passos SGD
+      
+      # dados de validacao para avaliar o progresso do modelo
+      validation_data = list(X[-ids,],
+                             treino_sf$Y[-ids]))
+```
+
+
+```{r}
+# o grafico abaixo mostra o MAE
+# para os dados de treino e teste
+plot(history)
+```
+
+
+```{r}
+# salvar o modelo
+save_model_hdf5(modelo_rn, "sf_rn")
+```
+
+```{r, eval=FALSE}
+# carregar o modelo
+modelo_rn <- load_model_hdf5("sf_rn")
+```
+
+```{r}
+# predicao
+pred_rn_dentro <- predict(modelo_rn, X[ids, ])
+pred_rn_fora <- predict(modelo_rn, X[-ids, ])
+```
+
+
+```{r}
+# calculo do erro absoluto medio
+(rn_erro_dentro <- mean(abs (treino_sf$Y[ids] - pred_rn_dentro)))
+(rn_erro_fora <- mean(abs (treino_sf$Y[-ids] - pred_rn_fora)))
+# atencao: os resultados variam um pouco pois
+# os calculos sao feitos do SGD no python
+
+(resultados <- rbind(resultados,
+                     data.frame(modelo = "Rede Neural",
+                                erro_dentro = rn_erro_dentro,
+                                erro_fora=rn_erro_fora)))
+
+```
+
+```{r}
+# resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
+# names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+# typeof(resultados[,2])
+resultados <- rbind(resultados,data.frame(modelo="lasso",erro_dentro=lasso_erro_dentro, erro_fora=lasso_erro_fora))
+resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
+
+```
 
 
 ### Submissão dos resultados
@@ -142,4 +307,8 @@ O dataframe teste_sf está estruturado no mesmo formato que o dataframe treino_s
 ```
 
 A medida utilizada para a avaliação dos resultados será o erro absoluto médio.
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE} 
+
+```
 
