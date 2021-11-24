@@ -69,7 +69,7 @@ Lasso selecao de var
 regularizacao, pq soma lambda*norma ao erro dentro
 
 
-### Lasso?
+### Lasso
 Vamos tentar rodar um LASSO com validação cruzada no conjunto de treino para definir o parâmetro lambda de penalização.
 ```{r}
 db_digitos <- data.frame(y_treino=y_treino,x_treino)
@@ -194,6 +194,11 @@ soma e divide por nrow
 
 
 ```
+
+
+### Modelo de Árvores
+### Redes neurais
+Como temos mais de uma classificação, foi utilizado a função softmax como função de ativação.
 
 
 ### Avaliação dos modelos
