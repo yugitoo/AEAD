@@ -169,7 +169,7 @@ y_lasso_fora <- predict(lasso, newx = X[-ids,],
 # typeof(resultados[,2])
 resultados <- rbind(resultados,data.frame(modelo="lasso",erro_dentro=lasso_erro_dentro, erro_fora=lasso_erro_fora))
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
-
+resultados
 ```
 
 
@@ -177,6 +177,44 @@ resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 ### Modelo de Árvores
 
 Em florestas aleatorias temos interpretabilidade.
+
+```{r}
+# duplicar o bd e renomear as colunas para rodar as florestas aleatorias
+treino_sf2 <- treino_sf
+response_col <- which(colnames(treino_sf2) == "Y")
+colnames(treino_sf2)[-response_col] <- paste0( "V", colnames(treino_sf2)[-response_col])
+```
+
+
+```{r}
+modelo_rf <- randomForest(treino_sf2$Y[ids] ~ .,
+                    data = treino_sf2[ids, ])
+```
+
+```{r}
+# importancia das variaveis
+importance(modelo_rf)
+varImpPlot(modelo_rf)
+```
+
+```{r}
+y_rf_dentro<- predict(modelo_rf, treino_sf2[ids,-1])
+y_rf_fora<- predict(modelo_rf, treino_sf2[-ids,-1])
+```
+
+```{r}
+(rf_erro_dentro <- mean(abs(y_rf_dentro - treino_sf$Y[ids])))
+
+(rf_erro_fora <- mean(abs((y_rf_fora - treino_sf$Y[-ids]))))
+```
+```{r}
+# resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
+# names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
+# typeof(resultados[,2])
+resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
+resultados
+```
+
 
 ### Redes neurais
 
