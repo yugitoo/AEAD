@@ -17,6 +17,7 @@ Este trabalho consiste na aplicação de técnicas estatísticas abordadas no cu
 
 ### Bibliotecas 
 ```{r}
+library(dplyr)
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
 ```
 
@@ -88,7 +89,7 @@ X <- model.matrix( ~ .-1,
 
 ```{r}
 # separando 75% dos dados para treino
-ids <- sample(nrow(db_digitos), size = .007*nrow(db_digitos), replace = FALSE)
+ids <- sample(nrow(db_digitos), size = .02*nrow(db_digitos), replace = FALSE)
 ```
 
 
@@ -265,11 +266,16 @@ sum(y_rf_fora==y_treino[-ids],na.rm = TRUE)/length(y_treino[-ids])
 
 
 ```{r}
-# TAREFA: diminuir o numero de arvores do randomForest
+
+resultados <- data.frame("Floresta Aleatoria",rf_ac_dentro, rf_ac_fora)
+names(resultados) <- c("modelo", "acuracia_dentro", "acuracia_fora")
+
+# resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
+# resultados
 
 # atualizacao do dataframe de resultados
-resultados[resultados$modelo=="rf", 2] <- prec_fora_rf
-
+# resultados <- rbind(resultados,data.frame(modelo="Floresta aleatoria",erro_dentro=rf_ac_dentro, erro_fora=rf_ac_fora))
+resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 
 ```
