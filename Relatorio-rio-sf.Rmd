@@ -123,8 +123,10 @@ resultados
 <!-- ``` -->
 
 ### Lasso
-Vamos rodar um LASSO e usar o lambda que minimiza o erro da validacao cruzada.
 
+Para criar um modelo de regressão com a penalização lasso, foi utilizada a biblioteca glmnet. Com ela, dentro da amostra de treino, foi ajustado o modelo de regressão com penalização lasso utizando validação cruzada. Em seguida, foi testado o modelo obtido no conjunto de validação e calculado o respectivo erro dentro e fora.
+
+Para a escolha do lambda, existem dois lambdas que são popularmentes usados: o que minimiza o erro gerado pela validação cruzada e o no qual o erro não ultrapassa um desvio padrão do melhor modelo. Com isso, foram testados modelos com cada um dos lambdas e calculados os erros dentro e fora respectivos de cada um.
 
 ```{r, eval=FALSE}
 cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
@@ -132,7 +134,7 @@ cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
 # cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
 #                       nlambda=500)
 
-cv_lasso$lambda.min
+# cv_lasso$lambda.min
 ```
 
 ```{r, eval=FALSE}
@@ -144,33 +146,40 @@ cv_lasso <- readRDS("sf_cv_lasso.rds")
 ```
 
 
-```{r, eval=FALSE}
-modelo_lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = cv_lasso$lambda.min)
-```
+<!-- ```{r, eval=FALSE} -->
+<!-- modelo_lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = cv_lasso$lambda.min) -->
+<!-- ``` -->
 
-```{r, eval=FALSE}
-saveRDS(modelo_lasso, "sf_lasso.rds")
-```
+<!-- ```{r, eval=FALSE} -->
+<!-- saveRDS(modelo_lasso, "sf_lasso.rds") -->
+<!-- ``` -->
 
-```{r, eval=TRUE}
-modelo_lasso <- readRDS("sf_lasso.rds")
-```
+<!-- ```{r, eval=TRUE} -->
+<!-- modelo_lasso <- readRDS("sf_lasso.rds") -->
+<!-- ``` -->
+
 
 ```{r}
 # saida mostra a prob de sair determinado valor
 
-y_lasso_dentro <- predict(modelo_lasso, newx = X[ids,],
+y_lasso_dentro <- predict(cv_lasso, newx = X[ids,],
                           s = cv_lasso$lambda.min) # valor predito dentro da amostra
+y_lasso_dentro2 <- predict(cv_lasso, newx = X[ids,],
+                          s = cv_lasso$lambda.1se) # valor predito dentro da amostra
 
-y_lasso_fora <- predict(modelo_lasso, newx = X[-ids,],
+y_lasso_fora <- predict(cv_lasso, newx = X[-ids,],
                           s = cv_lasso$lambda.min) # valor predito fora da amostra
+y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
+                          s = cv_lasso$lambda.1se) # valor predito fora da amostra
 ```
 
 
 ```{r}
 (erro_dentro_lasso <- mean(abs(y_lasso_dentro - treino_sf$Y[ids])))
+(erro_dentro_lasso2 <- mean(abs(y_lasso_dentro2 - treino_sf$Y[ids])))
 
 (erro_fora_lasso <- mean(abs((y_lasso_fora - treino_sf$Y[-ids]))))
+(erro_fora_lasso2 <- mean(abs((y_lasso_fora2 - treino_sf$Y[-ids]))))
 ```
 
 
@@ -178,7 +187,8 @@ y_lasso_fora <- predict(modelo_lasso, newx = X[-ids,],
 # resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
 # names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
 # typeof(resultados[,2])
-resultados <- rbind(resultados,data.frame(modelo="Lasso",erro_dentro=erro_dentro_lasso, erro_fora=erro_fora_lasso))
+resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda minimo",erro_dentro=erro_dentro_lasso, erro_fora=erro_fora_lasso))
+resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda 1 desvio padrao",erro_dentro=erro_dentro_lasso2, erro_fora=erro_fora_lasso2))
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 ```
@@ -216,9 +226,19 @@ saveRDS(modelo_rf, "sf_rf.rds")
 modelo_rf <- readRDS("sf_rf.rds")
 ```
 
+A seguir, podemos ver as cinco estações mais importantes e as cinco menos importantes para a predição.
+
 ```{r}
 # importancia das variaveis
-importance(modelo_rf)
+a <- as.data.frame(importance(modelo_rf))
+head(a %>% arrange(desc(IncNodePurity)),5)
+tail(a %>% arrange(desc(IncNodePurity)),5)
+rm(a)
+```
+
+Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cada estação.
+
+```{r}
 varImpPlot(modelo_rf)
 ```
 
@@ -306,7 +326,13 @@ history <- modelo_rn %>%
                      # para processar todos dados de treino
                      # nesse caso, cada epoca tem
                      # length(y[-ids_teste])/32 passos SGD
-      
+  #     callback = callback_early_stopping(monitor = "val_loss",
+  # min_delta = 0,
+  # patience = 20,
+  # verbose = 0,
+  # mode = c("auto"),
+  # baseline = NULL,
+  # restore_best_weights = FALSE),
       # dados de validacao para avaliar o progresso do modelo
       validation_data = list(X[-ids,],
                              treino_sf$Y[-ids]))
@@ -336,15 +362,15 @@ plot(history)
 
 ```{r}
 # predicao
-pred_rn_dentro <- predict(modelo_rn, X[ids, ])
-pred_rn_fora <- predict(modelo_rn, X[-ids, ])
+y_rn_dentro <- predict(modelo_rn, X[ids, ])
+y_rn_fora <- predict(modelo_rn, X[-ids, ])
 ```
 
 
 ```{r}
 # calculo do erro absoluto medio
-(erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - pred_rn_dentro)))
-(erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - pred_rn_fora)))
+(erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - y_rn_dentro)))
+(erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora)))
 # atencao: os resultados variam um pouco pois
 # os calculos sao feitos do SGD no python
 
@@ -352,7 +378,7 @@ pred_rn_fora <- predict(modelo_rn, X[-ids, ])
                      data.frame(modelo = "Rede Neural",
                                 erro_dentro = erro_dentro_rn,
                                 erro_fora=erro_fora_rn)))
-
+resultados
 ```
 
 
@@ -363,7 +389,12 @@ pred_rn_fora <- predict(modelo_rn, X[-ids, ])
 O dataframe teste_sf está estruturado no mesmo formato que o dataframe treino_sf. A única diferença é que ele não tem a coluna Y, que é aquela que seu modelo deve prever. Uma vez que você fizer a predição para os dados de teste, utilize o código abaixo para criar o arquivo para submissão e avalição. Para que funcione, você deve salvar as predições da vazão em um vetor númerico chamado predicoes, que deve conter 191 elementos. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Atenção: arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
 
 ```{r}
-# write.csv(data.frame(y_pred = predicoes), file="sf_nusp_meunome.csv")
+# duplicar o bd e renomear as colunas para rodar as florestas aleatorias
+teste_sf2 <- teste_sf
+colnames(teste_sf2) <- paste0( "V", colnames(teste_sf2))
+
+predicoes <- predict(modelo_rf, teste_sf2)
+write.csv(data.frame(y_pred = predicoes), file="sf_9297784_yugooyama.csv")
 
 ```
 
