@@ -56,6 +56,7 @@ Para comparar os modelos entre si,será utilizado o erro absoluto médio (MAE) e
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
 library(dplyr) # manipular tabelas e banco de dados
 library(keras) # redes neurais
+library(randomForest) # funcoes para estimar floresta aleatoria
 
 ```
 
@@ -279,7 +280,7 @@ library(keras)
 # a ultima camada tem somente uma unidade
 
 modelo_rn <- keras_model_sequential() %>%
-  layer_dense(units = 41, # numero de unidades
+  layer_dense(units = 41, # numero de unidades na camada oculta
               activation = "relu", # funcao de ativacao
               input_shape = ncol(X)) %>% # dimensao da entrada
   layer_dropout(rate = 0.4) %>% # taxa de nos nos suprime em cada etapa
@@ -298,6 +299,11 @@ modelo_rn %>%
 # a funcao compile() nao muda a variavel R, mas
 # comunica as especificacoes para a instancia
 # python correspondente que foi criada
+```
+
+```{r, eval=FALSE}
+# salvar o modelo
+save_model_hdf5(modelo_rn, "sf_rn")
 ```
 
 <!-- ```{r} -->
@@ -336,20 +342,20 @@ history <- modelo_rn %>%
       # dados de validacao para avaliar o progresso do modelo
       validation_data = list(X[-ids,],
                              treino_sf$Y[-ids]))
+```
+
+
+```{r, eval=FALSE}
 saveRDS(history, "sf_history.rds")
 
 ```
 
-```{r, eval=FALSE}
-# salvar o modelo
-save_model_hdf5(modelo_rn, "sf_rn")
-save_model_hdf5(history, "sf_history")
-```
+
 
 ```{r, eval=TRUE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("sf_rn")
-# history <- load_model_hdf5("sf_history.rds")
+history <- readRDS("sf_history.rds")
 ```
 
 
