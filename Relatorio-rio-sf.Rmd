@@ -60,7 +60,7 @@ library(randomForest) # funcoes para estimar floresta aleatoria
 
 ### Parâmetros
 
-Para o ajuste do modelo, foi definido que o conjunto de treino seria dividido em conjunto de treino e validação na proporção 8:2, ou seja, 20% do conjunto originalmente de treino foi usado para validação.
+Para o ajuste do modelo, foi definido que o conjunto de treino seria dividido em conjunto de treino e validação na proporção 8:2, ou seja, 20% do conjunto originalmente de treino foi usado para validação. Foi definida também uma semente por questão de reprodutibilidade.
 
 ```{r}
 # Definindo semente e porcentagem da amostra de treino e de validação.
@@ -129,7 +129,7 @@ resultados
 
 Para criar um modelo de regressão com a penalização lasso, foi utilizada a biblioteca glmnet. Com ela, dentro da amostra de treino, foi ajustado o modelo de regressão com penalização lasso utizando validação cruzada. Em seguida, foi testado o modelo obtido no conjunto de validação e calculado o respectivo erro dentro e fora.
 
-Para a escolha do lambda, existem dois lambdas que são popularmentes usados: o que minimiza o erro gerado pela validação cruzada e o no qual o erro não ultrapassa um desvio padrão do melhor modelo. Com isso, foram testados modelos com cada um dos lambdas e calculados os erros dentro e fora respectivos de cada um.
+Para a escolha do lambda, iniciou-se uma sequência: 0.01, 0.1, 1, 2, 10, 25, 50, 75, 100 e permitiu que a função cv.glmnet escolhesse o melhor lambda. Existem dois lambdas que são popularmentes usados: o que minimiza o erro gerado pela validação cruzada e o no qual o erro não ultrapassa um desvio padrão do melhor modelo. Com isso, foram testados modelos com cada um dos lambdas e calculados os erros dentro e fora respectivos de cada um.
 
 ```{r, eval=FALSE}
 cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
@@ -148,23 +148,7 @@ saveRDS(cv_lasso, "sf_cv_lasso.rds")
 cv_lasso <- readRDS("sf_cv_lasso.rds")
 ```
 
-
-<!-- ```{r, eval=FALSE} -->
-<!-- modelo_lasso <- glmnet(X[ids,], treino_sf$Y[ids], alpha = 1, lambda = cv_lasso$lambda.min) -->
-<!-- ``` -->
-
-<!-- ```{r, eval=FALSE} -->
-<!-- saveRDS(modelo_lasso, "sf_lasso.rds") -->
-<!-- ``` -->
-
-<!-- ```{r, eval=TRUE} -->
-<!-- modelo_lasso <- readRDS("sf_lasso.rds") -->
-<!-- ``` -->
-
-
 ```{r}
-# saida mostra a prob de sair determinado valor
-
 y_lasso_dentro <- predict(cv_lasso, newx = X[ids,],
                           s = cv_lasso$lambda.min) # valor predito dentro da amostra
 y_lasso_dentro2 <- predict(cv_lasso, newx = X[ids,],
@@ -175,7 +159,6 @@ y_lasso_fora <- predict(cv_lasso, newx = X[-ids,],
 y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
                           s = cv_lasso$lambda.1se) # valor predito fora da amostra
 ```
-
 
 ```{r}
 (erro_dentro_lasso <- mean(abs(y_lasso_dentro - treino_sf$Y[ids])))
@@ -189,18 +172,20 @@ y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
 ```{r}
 # resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
 # names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
-# typeof(resultados[,2])
+
 resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda minimo",erro_dentro=erro_dentro_lasso, erro_fora=erro_fora_lasso))
 resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda 1 desvio padrao",erro_dentro=erro_dentro_lasso2, erro_fora=erro_fora_lasso2))
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 ```
 
+### Modelo de Floresta Aleatória
 
+Foi escolhido o modelo de Floresta Aleatória já que dessa forma existe variabilidade na escolha das variáveis explicativas e na escolha das observações para a construção de cada árvore. Essa variabilidade por sua vez pode levar a uma melhor predição no conjunto de validação e no de teste.
 
-### Modelo de Árvores
+Para realizar o ajuste do modelo, foi utilizado a função randomForest do pacote randomForest.
 
-Em florestas aleatorias temos interpretabilidade.
+Como os nomes das estações são numéricas foi necessário fazer uma pequena alteração para que o comando randomForest funcionasse. 
 
 ```{r}
 library(randomForest) # funcoes para estimar floresta aleatoria
@@ -234,10 +219,11 @@ A seguir, podemos ver as cinco estações mais importantes e as cinco menos impo
 ```{r}
 # importancia das variaveis
 a <- as.data.frame(importance(modelo_rf))
-head(a %>% arrange(desc(IncNodePurity)),5)
+head(a %>% arrange(desc(IncNodePurity)),6)
 tail(a %>% arrange(desc(IncNodePurity)),5)
 rm(a)
 ```
+
 
 Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cada estação.
 
@@ -245,15 +231,17 @@ Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cad
 varImpPlot(modelo_rf)
 ```
 
+Percebemos claramente pelo gráfico que as estações 45298000,46105000,44290002,46998000,42210000,40025000 são as estações que mais contribuem para a previsão. As outras estações por outro lado quase não contribuem para a previsão.
+
 ```{r}
 y_rf_dentro<- predict(modelo_rf, treino_sf2[ids,-1])
 y_rf_fora<- predict(modelo_rf, treino_sf2[-ids,-1])
 ```
 
 ```{r}
-(erro_dentro_rf <- mean(abs(y_rf_dentro - treino_sf$Y[ids])))
+erro_dentro_rf <- mean(abs(y_rf_dentro - treino_sf$Y[ids]))
 
-(erro_fora_rf <- mean(abs((y_rf_fora - treino_sf$Y[-ids]))))
+erro_fora_rf <- mean(abs((y_rf_fora - treino_sf$Y[-ids])))
 ```
 ```{r}
 # resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
@@ -263,6 +251,8 @@ resultados <- rbind(resultados,data.frame(modelo="Floresta Aleatoria",erro_dentr
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 ```
+
+Percebemos uma melhora significativa em relação ao modelo média.
 
 
 ### Redes neurais
