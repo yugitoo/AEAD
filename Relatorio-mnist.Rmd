@@ -27,6 +27,7 @@ library(keras)
 
 ```{r}
 load("dados_mnist.rdata")
+load("dados_mnist_teste.rdata")
 ```
 
 
@@ -101,7 +102,7 @@ ids <- sample(nrow(db_digitos), size = .75*nrow(db_digitos), replace = FALSE)
 
 Foi testado permitir que a função cv.glmnet que ajusta modelo de regressão com validação cruzada usando o parâmetro alpha=1 correspondente a penalidade Lasso e ajustou-se tanto 30 como 50 lambdas diferentes.
 
-```{r}
+```{r, eval=FALSE}
 cv_lasso <- cv.glmnet(X[ids,], as.factor(db_digitos$y_treino[ids]), family = "multinomial", alpha = 1,
                       type.measure = "class", trace.it = TRUE, nlambda = 50, maxit = 10000)
 
@@ -109,7 +110,7 @@ cv_lasso$lambda.min
 cv_lasso$lambda.1se
 # plot(cv_lasso, cex.lab = 1.3)
 
-saveRDS(cv_lasso, "mnist_lasso2.rds")
+# saveRDS(cv_lasso, "mnist_lasso2.rds")
 ```
 
 
@@ -215,7 +216,7 @@ library(randomForest) # funcoes para estimar floresta aleatoria
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 modelo_rf <- randomForest(factor(db_digitos$y_treino[ids]) ~ .,
                     data = db_digitos[ids, ], do.trace=TRUE)
 ```
@@ -383,7 +384,7 @@ saveRDS(history, "mnist_history.rds")
 
 ```{r, eval=TRUE}
 # carregar o modelo
-modelo_rn <- load_model_hdf5("mnis_rn")
+modelo_rn <- load_model_hdf5("mnist_rn")
 # history <- readRds("mnist_history.rds")
 ```
 
@@ -397,10 +398,16 @@ rn_ac_fora <- modelo_rn %>% evaluate(x_test, y_test)
 ```{r}
 # predicao
 
-y_rn_dentro <- modelo_rn %>% predict(x_treino) %>% k_argmax()
-y_rn_fora <- modelo_rn %>% predict(x_test) %>% k_argmax()
+y_rn_dentro <- modelo_rn %>% predict(x_train) %>% k_argmax() %>% as.integer()
+y_rn_fora <- modelo_rn %>% predict(x_test) %>% k_argmax() %>% as.integer()
 ```
 
+
+```{r}
+# acuracia
+rn_ac_dentro <- mean(y_rn_dentro == db_digitos$y_treino[ids])
+rn_ac_fora <- mean(y_rn_fora == db_digitos$y_treino[-ids])
+```
 
 
 ```{r}
@@ -439,6 +446,12 @@ Submissão dos resultados
 Em posse do arquivo de dados de teste, use o código abaixo para criar o arquivo para submissão dos seus resultados. Para que funcione, você deverá salvar a predição das imagens de teste em um vetor chamado predicoes. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
 
 ```{r}
-# write.csv(data.frame(y_pred = predicoes), file="mnist_9297784_yugooyama.csv")
+predicoes <- modelo_rn %>% predict(x_teste) %>% k_argmax() %>% as.integer
+```
+
+
+```{r}
+# Salva as predicoes em arquivo csv
+write.csv(data.frame(y_pred = predicoes), file="mnist_9297784_yugooyama.csv")
 
 ```
