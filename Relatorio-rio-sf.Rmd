@@ -328,7 +328,7 @@ history <- modelo_rn %>%
       treino_sf$Y[ids],  # resposta de treino
       batch_size = 32, # quantas observacoes escolhidas aleatoriamentes
                        # em cada passo do SGD
-      epochs = 1500, # uma epoca e' numero de passos do SGD 1500
+      epochs = 150, # uma epoca e' numero de passos do SGD 1500
                      # para processar todos dados de treino
                      # nesse caso, cada epoca tem
                      # length(y[-ids_teste])/32 passos SGD
