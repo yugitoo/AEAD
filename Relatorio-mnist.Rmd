@@ -92,7 +92,7 @@ X <- model.matrix(db_digitos[,1] ~ .,
 ```{r}
 # separando 75% dos dados para treino
 ids <- sample(nrow(db_digitos), size = .75*nrow(db_digitos), replace = FALSE)
-# ids <- sample(nrow(db_digitos), size = .03*nrow(db_digitos), replace = FALSE)
+
 ```
 
 ```{r}
@@ -135,7 +135,10 @@ cv_lasso <- readRDS("mnist_lasso.rds")
 cv_lasso <-readRDS("mnist_lasso.rds")
 
 cv_lasso2 <-readRDS("mnist_lasso2.rds")
+```
 
+
+```{r}
 y_lasso_dentro <- predict(cv_lasso, newx = X[ids,], 
                           s = cv_lasso$lambda.min, type = "class") # valor predito dentro da amostra
 

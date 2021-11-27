@@ -46,8 +46,6 @@ O objetivo desta análise é propor um modelo que consiga realizar boas prediç�
 
 Para esse projeto serão usados modelos lineares com regularização, modelos baseados em árvores, e redes neurais.  
 
-
-
 Para comparar os modelos entre si,será utilizado o erro absoluto médio (MAE) e ao final de cada método testado, será adicionado o resultado a uma tabela comparativa.
 
 
@@ -59,6 +57,10 @@ library(keras) # redes neurais
 library(randomForest) # funcoes para estimar floresta aleatoria
 
 ```
+
+### Parâmetros
+
+Para o ajuste do modelo, foi definido que o conjunto de treino seria dividido em conjunto de treino e validação na proporção 8:2, ou seja, 20% do conjunto originalmente de treino foi usado para validação.
 
 ```{r}
 # Definindo semente e porcentagem da amostra de treino e de validação.
@@ -375,8 +377,8 @@ y_rn_fora <- predict(modelo_rn, X[-ids, ])
 
 ```{r}
 # calculo do erro absoluto medio
-(erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - y_rn_dentro)))
-(erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora)))
+erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - y_rn_dentro))
+erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora))
 # atencao: os resultados variam um pouco pois
 # os calculos sao feitos do SGD no python
 
@@ -384,7 +386,6 @@ y_rn_fora <- predict(modelo_rn, X[-ids, ])
                      data.frame(modelo = "Rede Neural",
                                 erro_dentro = erro_dentro_rn,
                                 erro_fora=erro_fora_rn)))
-resultados
 ```
 
 
