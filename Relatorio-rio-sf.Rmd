@@ -49,8 +49,8 @@ Para esse projeto serão usados modelos lineares com regularização, modelos ba
 Para comparar os modelos entre si,será utilizado o erro absoluto médio (MAE) e ao final de cada método testado, será adicionado o resultado a uma tabela comparativa.
 
 
-### Bibliotecas 
-```{r}
+
+```{r, results=FALSE, warning=FALSE, message=FALSE}
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
 library(dplyr) # manipular tabelas e banco de dados
 library(keras) # redes neurais
@@ -60,7 +60,7 @@ library(randomForest) # funcoes para estimar floresta aleatoria
 
 ### Parâmetros
 
-Para o ajuste do modelo, foi definido que o conjunto de treino seria dividido em conjunto de treino e validação na proporção 8:2, ou seja, 20% do conjunto originalmente de treino foi usado para validação. Foi definida também uma semente por questão de reprodutibilidade.
+Para o ajuste do modelo, foi definido que o conjunto de treino seria dividido em conjunto de treino e validação na proporção 8:2, ou seja, 20% do conjunto originalmente de treino foi usado para validação. Foi definida também uma semente por questão de reprodutibilidade (1234).
 
 ```{r}
 # Definindo semente e porcentagem da amostra de treino e de validação.
@@ -84,15 +84,17 @@ X <- model.matrix(Y ~ .,
 
 De forma a ter uma base para comparar, foi construído um modelo simples que considera todos os valores da estação 46998000, calcula a média e sempre preve que a próxima medição será a média.
 
+Temos os resultados abaixo.
+
 ```{r}
 media <- mean(X[,"`46998000`"])
 y_media_dentro <- rep(media,nrow(X[ids,]))
 
 y_media_fora <- rep(media,nrow(X[-ids,]))
 
-(media_erro_dentro <- mean(abs(y_media_dentro - treino_sf$Y[ids])))
+media_erro_dentro <- mean(abs(y_media_dentro - treino_sf$Y[ids]))
 
-(media_erro_fora <- mean(abs((y_media_fora - treino_sf$Y[-ids]))))
+media_erro_fora <- mean(abs((y_media_fora - treino_sf$Y[-ids])))
 
 ```
 
@@ -131,9 +133,13 @@ Para criar um modelo de regressão com a penalização lasso, foi utilizada a bi
 
 Para a escolha do lambda, iniciou-se uma sequência: 0.01, 0.1, 1, 2, 10, 25, 50, 75, 100 e permitiu que a função cv.glmnet escolhesse o melhor lambda. Existem dois lambdas que são popularmentes usados: o que minimiza o erro gerado pela validação cruzada e o no qual o erro não ultrapassa um desvio padrão do melhor modelo. Com isso, foram testados modelos com cada um dos lambdas e calculados os erros dentro e fora respectivos de cada um.
 
+Os resultados obtidos podem ser observados na tabela a seguir.
+
 ```{r, eval=FALSE}
 cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
                       lambda = c(0.01, 0.1, 1, 2, 10, 25, 50, 75, 100))
+cv_lasso5 <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
+                      nlambda=30)
 # cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
 #                       nlambda=500)
 
@@ -161,11 +167,11 @@ y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
 ```
 
 ```{r}
-(erro_dentro_lasso <- mean(abs(y_lasso_dentro - treino_sf$Y[ids])))
-(erro_dentro_lasso2 <- mean(abs(y_lasso_dentro2 - treino_sf$Y[ids])))
+erro_dentro_lasso <- mean(abs(y_lasso_dentro - treino_sf$Y[ids]))
+erro_dentro_lasso2 <- mean(abs(y_lasso_dentro2 - treino_sf$Y[ids]))
 
-(erro_fora_lasso <- mean(abs((y_lasso_fora - treino_sf$Y[-ids]))))
-(erro_fora_lasso2 <- mean(abs((y_lasso_fora2 - treino_sf$Y[-ids]))))
+erro_fora_lasso <- mean(abs((y_lasso_fora - treino_sf$Y[-ids])))
+erro_fora_lasso2 <- mean(abs((y_lasso_fora2 - treino_sf$Y[-ids])))
 ```
 
 
@@ -178,6 +184,11 @@ resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda 1 desvio padrao
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 ```
+
+Percebemos que em relação ao modelo média, há uma expressiva melhora tanto no erro dentro como no erro fora.  
+
+Em relação ao uso do lambda mínimo ou lambda 1 desvio padrão, os resultados são muito semelhantes, sendo que o lambda mínimo obteve um desempenho um pouco melhor.
+
 
 ### Modelo de Floresta Aleatória
 
@@ -231,7 +242,7 @@ Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cad
 varImpPlot(modelo_rf)
 ```
 
-Percebemos claramente pelo gráfico que as estações 45298000,46105000,44290002,46998000,42210000,40025000 são as estações que mais contribuem para a previsão. As outras estações por outro lado quase não contribuem para a previsão.
+Percebemos claramente pelo gráfico que as estações 45298000,46105000,44290002,46998000,42210000,40025000 são as estações que mais contribuem para a previsão. As outras estações por outro lado contribuem pouco e de forma semelhante para a previsão.
 
 ```{r}
 y_rf_dentro<- predict(modelo_rf, treino_sf2[ids,-1])
@@ -252,14 +263,18 @@ resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 ```
 
-Percebemos uma melhora significativa em relação ao modelo média.
+Novamente, percebemos uma melhora significativa em relação ao modelo média.
+
+Em relação ao modelo de lasso, percebemos melhora expressiva no erro dentro e melhora significativa no erro fora.
 
 
 ### Redes neurais
 
-Foi utilizada a função de ativação ReLu ao invés da sigmoid por ser computacionalmente mais rápida.
-Vamos considerar uma estrutura simples com apenas uma camada oculta.
-Vamos considerar 41 unidades na camada oculta, por ser 50% da quantidade de camadas de entrada.
+Para o modelo de redes neurais, foi utilizada a função de ativação ReLU ao invés da sigmoid por ser computacionalmente mais rápida.
+
+Vamos considerar uma estrutura simples com apenas uma camada oculta e 41 unidades, por corresponder a 50% da quantidade de camadas de entrada. Foi considerado 40% de supressão.
+
+Observando o gráfico do erro ao longo das epochs, optou-se por consider 150 epochs e tamanho de batch = 32.
 
 ```{r, eval=FALSE}
 # Rede Neural -------------------------------------------------------------
@@ -364,6 +379,8 @@ y_rn_dentro <- predict(modelo_rn, X[ids, ])
 y_rn_fora <- predict(modelo_rn, X[-ids, ])
 ```
 
+Podemos observar os resultados a seguir.
+
 
 ```{r}
 # calculo do erro absoluto medio
@@ -378,6 +395,7 @@ erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora))
                                 erro_fora=erro_fora_rn)))
 ```
 
+Percebemos que dentre modelos, o que teve melhor desempenho tanto no erro dentro quanto no erro fora foi o modelo de floresta aleatória. Dessa forma, a previsão para os dados de teste foi feita utilizando o modelo de floresta aleatória.
 
 
 
@@ -395,9 +413,9 @@ write.csv(data.frame(y_pred = predicoes), file="sf_9297784_yugooyama.csv")
 
 ```
 
-A medida utilizada para a avaliação dos resultados será o erro absoluto médio.
 
-```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE} 
 
-```
+<!-- ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}  -->
+
+<!-- ``` -->
 
