@@ -2,7 +2,10 @@
 title: "Trabalho de Aplicação - Rio São Franscisco"
 author: 'Yugo Oyama NUSP: 9297784'
 date: "14/11/2021"
-output: pdf_document
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -133,12 +136,14 @@ Para criar um modelo de regressão com a penalização lasso, foi utilizada a bi
 
 Para a escolha do lambda, iniciou-se uma sequência: 0.01, 0.1, 1, 2, 10, 25, 50, 75, 100 e permitiu que a função cv.glmnet escolhesse o melhor lambda. Existem dois lambdas que são popularmentes usados: o que minimiza o erro gerado pela validação cruzada e o no qual o erro não ultrapassa um desvio padrão do melhor modelo. Com isso, foram testados modelos com cada um dos lambdas e calculados os erros dentro e fora respectivos de cada um.
 
+Ainda como modelo alternativo, foi definido que a função cv.glmnet escolhesse 30 lambdas diferentes e ajustasse um modelo.
+
 Os resultados obtidos podem ser observados na tabela a seguir.
 
 ```{r, eval=FALSE}
 cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
                       lambda = c(0.01, 0.1, 1, 2, 10, 25, 50, 75, 100))
-cv_lasso5 <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
+cv_lasso2 <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
                       nlambda=30)
 # cv_lasso <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
 #                       nlambda=500)
@@ -148,30 +153,51 @@ cv_lasso5 <- cv.glmnet(X[ids,], treino_sf$Y[ids], alpha = 1,
 
 ```{r, eval=FALSE}
 saveRDS(cv_lasso, "sf_cv_lasso.rds")
+saveRDS(cv_lasso2, "sf_cv_lasso2.rds")
 ```
 
 ```{r, eval=TRUE}
 cv_lasso <- readRDS("sf_cv_lasso.rds")
+cv_lasso2 <- readRDS("sf_cv_lasso2.rds")
 ```
 
 ```{r}
 y_lasso_dentro <- predict(cv_lasso, newx = X[ids,],
                           s = cv_lasso$lambda.min) # valor predito dentro da amostra
-y_lasso_dentro2 <- predict(cv_lasso, newx = X[ids,],
+y_lasso_dentro1.2 <- predict(cv_lasso, newx = X[ids,],
                           s = cv_lasso$lambda.1se) # valor predito dentro da amostra
 
 y_lasso_fora <- predict(cv_lasso, newx = X[-ids,],
                           s = cv_lasso$lambda.min) # valor predito fora da amostra
-y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
+y_lasso_fora1.2 <- predict(cv_lasso, newx = X[-ids,],
                           s = cv_lasso$lambda.1se) # valor predito fora da amostra
+
+y_lasso_dentro2 <- predict(cv_lasso2, newx = X[ids,],
+                          s = cv_lasso2$lambda.min) # valor predito dentro da amostra
+y_lasso_dentro2.2 <- predict(cv_lasso2, newx = X[ids,],
+                          s = cv_lasso2$lambda.1se) # valor predito dentro da amostra
+
+y_lasso_fora2 <- predict(cv_lasso2, newx = X[-ids,],
+                          s = cv_lasso2$lambda.min) # valor predito fora da amostra
+y_lasso_fora2.2 <- predict(cv_lasso2, newx = X[-ids,],
+                          s = cv_lasso2$lambda.1se) # valor predito fora da amostra
+
+
 ```
 
 ```{r}
 erro_dentro_lasso <- mean(abs(y_lasso_dentro - treino_sf$Y[ids]))
-erro_dentro_lasso2 <- mean(abs(y_lasso_dentro2 - treino_sf$Y[ids]))
+erro_dentro_lasso1.2 <- mean(abs(y_lasso_dentro1.2 - treino_sf$Y[ids]))
 
 erro_fora_lasso <- mean(abs((y_lasso_fora - treino_sf$Y[-ids])))
+erro_fora_lasso1.2 <- mean(abs((y_lasso_fora1.2 - treino_sf$Y[-ids])))
+
+
+erro_dentro_lasso2 <- mean(abs(y_lasso_dentro2 - treino_sf$Y[ids]))
+erro_dentro_lasso2.2 <- mean(abs(y_lasso_dentro2.2 - treino_sf$Y[ids]))
+
 erro_fora_lasso2 <- mean(abs((y_lasso_fora2 - treino_sf$Y[-ids])))
+erro_fora_lasso2.2 <- mean(abs((y_lasso_fora2.2 - treino_sf$Y[-ids])))
 ```
 
 
@@ -179,8 +205,14 @@ erro_fora_lasso2 <- mean(abs((y_lasso_fora2 - treino_sf$Y[-ids])))
 # resultados <- data.frame("lasso",lasso_erro_dentro, lasso_erro_fora)
 # names(resultados) <- c("modelo", "erro_dentro", "erro_fora")
 
+# Modelo 1
 resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda minimo",erro_dentro=erro_dentro_lasso, erro_fora=erro_fora_lasso))
-resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda 1 desvio padrao",erro_dentro=erro_dentro_lasso2, erro_fora=erro_fora_lasso2))
+resultados <- rbind(resultados,data.frame(modelo="Lasso - lambda 1 desvio padrao",erro_dentro=erro_dentro_lasso1.2, erro_fora=erro_fora_lasso1.2))
+
+resultados <- rbind(resultados,data.frame(modelo="Lasso 2- lambda minimo",erro_dentro=erro_dentro_lasso2, erro_fora=erro_fora_lasso))
+resultados <- rbind(resultados,data.frame(modelo="Lasso 2- lambda 1 desvio padrao",erro_dentro=erro_dentro_lasso2.2, erro_fora=erro_fora_lasso2.2))
+
+
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 ```
@@ -189,6 +221,7 @@ Percebemos que em relação ao modelo média, há uma expressiva melhora tanto n
 
 Em relação ao uso do lambda mínimo ou lambda 1 desvio padrão, os resultados são muito semelhantes, sendo que o lambda mínimo obteve um desempenho um pouco melhor.
 
+Em relação a aos modelos com a lista de lambdas fornecidas e com os 30 lambdas escolhidos pela função, os resultudados pbtidos foram muito semelhantes.
 
 ### Modelo de Floresta Aleatória
 
@@ -199,7 +232,7 @@ Para realizar o ajuste do modelo, foi utilizado a função randomForest do pacot
 Como os nomes das estações são numéricas foi necessário fazer uma pequena alteração para que o comando randomForest funcionasse. 
 
 ```{r}
-library(randomForest) # funcoes para estimar floresta aleatoria
+# library(randomForest) # funcoes para estimar floresta aleatoria
 ```
 
 
@@ -272,18 +305,17 @@ Em relação ao modelo de lasso, percebemos melhora expressiva no erro dentro e 
 
 Para o modelo de redes neurais, foi utilizada a função de ativação ReLU ao invés da sigmoid por ser computacionalmente mais rápida.
 
-Vamos considerar uma estrutura simples com apenas uma camada oculta e 41 unidades, por corresponder a 50% da quantidade de camadas de entrada. Foi considerado 40% de supressão.
+Vamos considerar um modelo com apenas uma camada oculta e 41 unidades, por corresponder a 50% da quantidade de camadas de entrada e um modelo com 3 camadas ocultas com 60,40,20 unidades respectivamente por corresponderem a aproximadamente 75%, 50%, 25%. 
 
-Observando o gráfico do erro ao longo das epochs, optou-se por consider 150 epochs e tamanho de batch = 32.
+Foram considerados 40% de supressão, 150 epochs e tamanho de batch = 32.
+
+
 
 ```{r, eval=FALSE}
 # Rede Neural -------------------------------------------------------------
-library(keras)
+# library(keras)
 
 # primeiro passo: definir a estrutura que descreve a rede neural
-# vamos considerar uma rede com uma unica camada oculta
-# contendo 50 unidades e funcao de ativacao ReLU
-# dropout layer de 40%
 # a ultima camada tem somente uma unidade
 
 modelo_rn <- keras_model_sequential() %>%
@@ -358,18 +390,107 @@ saveRDS(history, "sf_history.rds")
 ```
 
 
+```{r, eval=FALSE}
+# Rede Neural -------------------------------------------------------------
+library(keras)
+
+# primeiro passo: definir a estrutura que descreve a rede neural
+# a ultima camada tem somente uma unidade
+
+modelo_rn2 <- keras_model_sequential() %>%
+  layer_dense(units = 60, # numero de unidades na camada oculta
+              activation = "relu", # funcao de ativacao
+              input_shape = ncol(X)) %>% # dimensao da entrada
+  layer_dropout(rate = 0.4) %>% # taxa de nos nos suprime em cada etapa
+  layer_dense(units = 40, activation = 'relu') %>%
+  layer_dropout(rate = 0.4) %>% # taxa de nos nos suprime em cada etapa
+  layer_dense(units = 20, activation = 'relu') %>%
+  layer_dropout(rate = 0.4) %>%
+  layer_dense(units = 1) # camadas de saida com uma unica unidade pq eh um modelo de regressao
+
+modelo_rn2
+```
+
+
+```{r, eval=FALSE}
+# segundo passo: especificacoes que controlam o algoritmo de estimacao
+modelo_rn2 %>%
+  compile(loss = "mse",   # funcao de custo
+          optimizer = optimizer_rmsprop(),  # otimizador
+          metrics = list("mean_absolute_error"))   # metrica para avaliar o erro
+# a funcao compile() nao muda a variavel R, mas
+# comunica as especificacoes para a instancia
+# python correspondente que foi criada
+```
+
+```{r, eval=FALSE}
+# salvar o modelo
+save_model_hdf5(modelo_rn2, "sf_rn2")
+```
+
+<!-- ```{r} -->
+<!-- callback <- EarlyStopping( -->
+<!--     monitor="val_loss", # erro a ser monitorado -->
+<!--     min_delta=0, # diminuicao de erro minima -->
+<!--     patience=10, # numero de vezes toleradas sem diminuicao do erro -->
+<!--     verbose=0, -->
+<!--     mode="auto", -->
+<!--     baseline=None, -->
+<!--     restore_best_weights=False, -->
+<!-- ) -->
+
+<!-- ``` -->
+
+
+
+```{r, eval=FALSE}
+# terceiro passo: ajustar o modelo (estimar os parametros)
+history2 <- modelo_rn2 %>%
+  fit(X[ids,], # preditoras de treino    dados de entrada
+      treino_sf$Y[ids],  # resposta de treino
+      batch_size = 32, # quantas observacoes escolhidas aleatoriamentes
+                       # em cada passo do SGD
+      epochs = 150, # uma epoca e' numero de passos do SGD 1500
+                     # para processar todos dados de treino
+                     # nesse caso, cada epoca tem
+                     # length(y[-ids_teste])/32 passos SGD
+  #     callback = callback_early_stopping(monitor = "val_loss",
+  # min_delta = 0,
+  # patience = 20,
+  # verbose = 0,
+  # mode = c("auto"),
+  # baseline = NULL,
+  # restore_best_weights = FALSE),
+      # dados de validacao para avaliar o progresso do modelo
+      validation_data = list(X[-ids,],
+                             treino_sf$Y[-ids]))
+```
+
+
+```{r, eval=FALSE}
+saveRDS(history2, "sf_history2.rds")
+
+```
+
+
+
+
 
 ```{r, eval=TRUE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("sf_rn")
 history <- readRDS("sf_history.rds")
+
+modelo_rn2 <- load_model_hdf5("sf_rn2")
+history2 <- readRDS("sf_history2.rds")
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # o grafico abaixo mostra o MAE
 # para os dados de treino e teste
-plot(history)
+# plot(history, xlim(0,150))
+# plot(history2,xlim(0,150))
 ```
 
 
@@ -377,6 +498,10 @@ plot(history)
 # predicao
 y_rn_dentro <- predict(modelo_rn, X[ids, ])
 y_rn_fora <- predict(modelo_rn, X[-ids, ])
+
+y_rn_dentro2 <- predict(modelo_rn2, X[ids, ])
+y_rn_fora2 <- predict(modelo_rn2, X[-ids, ])
+
 ```
 
 Podemos observar os resultados a seguir.
@@ -386,22 +511,32 @@ Podemos observar os resultados a seguir.
 # calculo do erro absoluto medio
 erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - y_rn_dentro))
 erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora))
-# atencao: os resultados variam um pouco pois
-# os calculos sao feitos do SGD no python
 
-(resultados <- rbind(resultados,
+erro_dentro_rn2 <- mean(abs (treino_sf$Y[ids] - y_rn_dentro2))
+erro_fora_rn2 <- mean(abs (treino_sf$Y[-ids] - y_rn_fora2))
+
+
+
+resultados <- rbind(resultados,
                      data.frame(modelo = "Rede Neural",
                                 erro_dentro = erro_dentro_rn,
-                                erro_fora=erro_fora_rn)))
+                                erro_fora=erro_fora_rn))
+
+(resultados <- rbind(resultados,
+                     data.frame(modelo = "Rede Neural 2",
+                                erro_dentro = erro_dentro_rn2,
+                                erro_fora=erro_fora_rn2)))
 ```
 
-Percebemos que dentre modelos, o que teve melhor desempenho tanto no erro dentro quanto no erro fora foi o modelo de floresta aleatória. Dessa forma, a previsão para os dados de teste foi feita utilizando o modelo de floresta aleatória.
+Percebemos que aumentar o numero de camadas ocultas não melhorou o erro de previsão do modelo. Pelo contrário, piorou-a.
+
+Dentre modelos, o que teve melhor desempenho tanto no erro dentro quanto no erro fora foi o modelo de floresta aleatória. Dessa forma, a previsão para os dados de teste foi feita utilizando o modelo de floresta aleatória.
 
 
 
-### Submissão dos resultados
+<!-- ### Submissão dos resultados -->
 
-O dataframe teste_sf está estruturado no mesmo formato que o dataframe treino_sf. A única diferença é que ele não tem a coluna Y, que é aquela que seu modelo deve prever. Uma vez que você fizer a predição para os dados de teste, utilize o código abaixo para criar o arquivo para submissão e avalição. Para que funcione, você deve salvar as predições da vazão em um vetor númerico chamado predicoes, que deve conter 191 elementos. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Atenção: arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
+<!-- O dataframe teste_sf está estruturado no mesmo formato que o dataframe treino_sf. A única diferença é que ele não tem a coluna Y, que é aquela que o modelo deve prever. -->
 
 ```{r}
 # duplicar o bd e renomear as colunas para rodar as florestas aleatorias
@@ -419,3 +554,4 @@ write.csv(data.frame(y_pred = predicoes), file="sf_9297784_yugooyama.csv")
 
 <!-- ``` -->
 
+  

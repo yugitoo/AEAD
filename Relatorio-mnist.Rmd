@@ -15,8 +15,8 @@ Este trabalho consiste na aplicação de técnicas estatísticas abordadas no cu
 
 ## Dados de digitos manuscritos
 
-### Bibliotecas 
-```{r}
+
+```{r, results=FALSE, warning=FALSE, message=FALSE}
 library(dplyr)
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
 library(keras)
@@ -95,16 +95,12 @@ ids <- sample(nrow(db_digitos), size = .75*nrow(db_digitos), replace = FALSE)
 
 ```
 
-```{r}
-# seq(30)
-# lambda = c(0.01, 0.1, 1, 2, 10, 25, 50, 75, 100)
-```
 
 Foi testado permitir que a função cv.glmnet que ajusta modelo de regressão com validação cruzada usando o parâmetro alpha=1 correspondente a penalidade Lasso e ajustou-se tanto 30 como 50 lambdas diferentes.
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 cv_lasso <- cv.glmnet(X[ids,], as.factor(db_digitos$y_treino[ids]), family = "multinomial", alpha = 1,
-                      type.measure = "class", trace.it = TRUE, nlambda = 50, maxit = 10000)
+                      type.measure = "class", trace.it = TRUE, lambda = c(0.01, 0.1, 1, 2, 10, 25, 50, 75, 100), maxit = 10000, nfolds = 10)
 
 cv_lasso$lambda.min
 cv_lasso$lambda.1se
@@ -131,10 +127,10 @@ cv_lasso <- readRDS("mnist_lasso.rds")
 
 
 
-```{r}
+```{r, eval=FALSE}
 cv_lasso <-readRDS("mnist_lasso.rds")
 
-cv_lasso2 <-readRDS("mnist_lasso2.rds")
+# cv_lasso2 <-readRDS("mnist_lasso2.rds")
 ```
 
 
@@ -145,11 +141,11 @@ y_lasso_dentro <- predict(cv_lasso, newx = X[ids,],
 y_lasso_dentro1.2 <- predict(cv_lasso, newx = X[ids,],
                           s = cv_lasso$lambda.1se, type = "class") # valor predito dentro da amostra
 
-y_lasso_dentro2 <- predict(cv_lasso2, newx = X[ids,],
-                          s = cv_lasso2$lambda.min, type = "class") # valor predito dentro da amostra
-
-y_lasso_dentro2.2 <- predict(cv_lasso2, newx = X[ids,],
-                          s = cv_lasso2$lambda.1se, type = "class") # valor predito dentro da amostra
+# y_lasso_dentro2 <- predict(cv_lasso2, newx = X[ids,],
+#                           s = cv_lasso2$lambda.min, type = "class") # valor predito dentro da amostra
+# 
+# y_lasso_dentro2.2 <- predict(cv_lasso2, newx = X[ids,],
+#                           s = cv_lasso2$lambda.1se, type = "class") # valor predito dentro da amostra
 
 ```
 
@@ -169,11 +165,11 @@ y_lasso_fora <- predict(cv_lasso, newx = X[-ids,],
 y_lasso_fora1.2 <- predict(cv_lasso, newx = X[-ids,],
                         s = cv_lasso$lambda.1se, type = "class") # valor 
 
-y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
-                        s = cv_lasso2$lambda.min, type = "class") # valor predito fora da amostra
-
-y_lasso_fora2.2 <- predict(cv_lasso, newx = X[-ids,],
-                        s = cv_lasso2$lambda.1se, type = "class") # valor 
+# y_lasso_fora2 <- predict(cv_lasso, newx = X[-ids,],
+#                         s = cv_lasso2$lambda.min, type = "class") # valor predito fora da amostra
+# 
+# y_lasso_fora2.2 <- predict(cv_lasso, newx = X[-ids,],
+#                         s = cv_lasso2$lambda.1se, type = "class") # valor 
 
 ```
 
@@ -184,10 +180,10 @@ lasso_ac_dentro1.2<- mean(y_lasso_dentro1.2==y_treino[ids])
 lasso_ac_fora<- mean(y_lasso_fora==y_treino[-ids])
 lasso_ac_fora1.2<- mean(y_lasso_fora1.2==y_treino[-ids])
 
-lasso_ac_dentro2<- mean(y_lasso_dentro2==y_treino[ids])
-lasso_ac_dentro2.2<- mean(y_lasso_dentro2.2==y_treino[ids])
-lasso_ac_fora2<- mean(y_lasso_fora2==y_treino[-ids])
-lasso_ac_fora2.2<- mean(y_lasso_fora2.2==y_treino[-ids])
+# lasso_ac_dentro2<- mean(y_lasso_dentro2==y_treino[ids])
+# lasso_ac_dentro2.2<- mean(y_lasso_dentro2.2==y_treino[ids])
+# lasso_ac_fora2<- mean(y_lasso_fora2==y_treino[-ids])
+# lasso_ac_fora2.2<- mean(y_lasso_fora2.2==y_treino[-ids])
 
 
 ```
@@ -199,9 +195,9 @@ names(resultados) <- c("modelo", "acuracia_dentro", "acuracia_fora")
 resultados <- rbind(resultados,data.frame(modelo="Lasso - Lambda 1 desvio padrao",acuracia_dentro=lasso_ac_dentro1.2, acuracia_fora=lasso_ac_fora1.2))
 
 
-resultados <- rbind(resultados,data.frame(modelo="Lasso2 - Lambda minimo padrao",acuracia_dentro=lasso_ac_dentro2, acuracia_fora=lasso_ac_fora2))
-
-resultados <- rbind(resultados,data.frame(modelo="Lasso2 - Lambda 1 desvio padrao",acuracia_dentro=lasso_ac_dentro2.2, acuracia_fora=lasso_ac_fora2.2))
+# resultados <- rbind(resultados,data.frame(modelo="Lasso2 - Lambda minimo padrao",acuracia_dentro=lasso_ac_dentro2, acuracia_fora=lasso_ac_fora2))
+# 
+# resultados <- rbind(resultados,data.frame(modelo="Lasso2 - Lambda 1 desvio padrao",acuracia_dentro=lasso_ac_dentro2.2, acuracia_fora=lasso_ac_fora2.2))
 
 
 resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
