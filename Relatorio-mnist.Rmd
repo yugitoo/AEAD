@@ -5,7 +5,7 @@ date: "14/11/2021"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -455,12 +455,12 @@ resultados
 Percebemos o modelo de redes neurais foi o que obteve a maior acurácia tanto dentro como fora (conjunto de validação). Dessa forma, o modelo de redes neurais foi o modelo usado para realizar as previsões do conjunto de teste.
 
 
-```{r}
+```{r, eval=FALSE}
 predicoes <- modelo_rn %>% predict(x_teste) %>% k_argmax() %>% as.integer
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 # Salva as predicoes em arquivo csv
 write.csv(data.frame(y_pred = predicoes), file="mnist_9297784_yugooyama.csv")
 
