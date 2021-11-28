@@ -370,7 +370,7 @@ history <- modelo_rn %>%
                              y_test))
 ```
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 saveRDS(history, "mnist_history.rds")
 
 ```
@@ -380,6 +380,10 @@ saveRDS(history, "mnist_history.rds")
 # carregar o modelo
 modelo_rn <- load_model_hdf5("mnist_rn")
 history <- readRDS("mnist_history.rds")
+```
+
+```{r, message=FALSE, warning=FALSE}
+plot(history)
 ```
 
 
