@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE, echo=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Introdução
@@ -122,7 +122,7 @@ ids <- sample(nrow(db_digitos), size = .75*nrow(db_digitos), replace = FALSE)
 
 
 
-```{r, eval=TRUE}
+```{r, eval=FALSE, results=FALSE}
 cv_lasso <- cv.glmnet(X[ids,], as.factor(db_digitos$y_treino[ids]), family = "multinomial", alpha = 1,
                       type.measure = "class", trace.it = TRUE, nlambda = 30, maxit = 10000, nfolds = 10)
 
@@ -141,11 +141,11 @@ cv_lasso$lambda.1se
 ```
 
 
-```{r,eval=TRUE}
+```{r,eval=FALSE}
 saveRDS(cv_lasso, "mnist_lasso.rds")
 ```
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 cv_lasso <- readRDS("mnist_lasso.rds")
 ```
 
@@ -229,7 +229,9 @@ resultados
 
 ```
 
+Percebemos que usar o modelo com lambda mínimo ou o modelo com lambda 1 desvio padrão não resulta em muita diferença na acurárica.
 
+O ajuste do modelo demorou algumas horas para ser realizado.
 
 ### Modelo de Árvores
 
@@ -259,13 +261,13 @@ modelo_rf <- readRDS("mnist_rf.rds")
 ```
 
 
-```{r}
-# importancia das variaveis
-importance(modelo_rf)
-varImpPlot(modelo_rf)
-```
+<!-- ```{r} -->
+<!-- # importancia das variaveis -->
+<!-- importance(modelo_rf) -->
+<!-- varImpPlot(modelo_rf) -->
+<!-- ``` -->
 
-A seguir, podemos ver OS cinco pixels mais importantes e as cinco menos importantes para a predição.
+A seguir, podemos ver os cinco pixels mais importantes e as cinco menos importantes para a predição.
 
 ```{r}
 # importancia das variaveis
@@ -275,13 +277,15 @@ tail(a %>% arrange(desc(MeanDecreaseGini)),5)
 rm(a)
 ```
 
+Percebemos, como esperado, que os pixels mais periféricos (mais próximos às bordas das imagens) são os que menos contribuem para o ajuste de previsão e os pixels mais centrais são os que mais contribuem.
+
 Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cada pixel.
 
 ```{r}
 varImpPlot(modelo_rf)
 ```
 
-Percebemos a existência de pixels cuja contribuição para a previsão é inexistente.
+Pelo gráfico, percebemos que o ajuste do modelo não é feito a partir de alguns pixels isolados e sim a partir, principalmente, do conjunto de pixels mais próximos do centro.
 
 ```{r}
 y_rf_dentro<- predict(modelo_rf, db_digitos[ids,-1],type="class")
@@ -307,6 +311,10 @@ resultados <- resultados %>% mutate(across(where(is.numeric),round,4))
 resultados
 
 ```
+
+Percebemos que o modelo de floresta aleatória obteve acurácia maior que os modelos de regressão com penalidade Lasso tanto na acurácia dentro como na acurácia fora. 
+
+Impressionantemente, a acurácia dentro foi de 100%, ou seja, não errou nenhuma predição.
 
 ### Redes neurais
 
@@ -344,7 +352,7 @@ y_test <- to_categorical(y_treino[-ids], 10)
 
 
 
-```{r, eval=TRUE,results=FALSE}
+```{r, eval=FALSE,results=FALSE}
 # Rede Neural -------------------------------------------------------------
 # library(keras)
 
@@ -367,7 +375,7 @@ modelo_rn
 
 
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 # segundo passo: especificacoes que controlam o algoritmo de estimacao
 modelo_rn %>%
   compile(loss = "categorical_crossentropy",   # funcao de custo
@@ -386,7 +394,7 @@ save_model_hdf5(modelo_rn, "mnist_rn")
 
 
 
-```{r, eval=TRUE, results=FALSE}
+```{r, eval=FALSE, results=FALSE}
 # terceiro passo: ajustar o modelo (estimar os parametros)
 history <- modelo_rn %>%
   fit(x_train, # preditoras de treino    dados de entrada
@@ -410,13 +418,13 @@ history <- modelo_rn %>%
                              y_test))
 ```
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 saveRDS(history, "mnist_history.rds")
 
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("mnist_rn")
 # history <- readRds("mnist_history.rds")
@@ -452,8 +460,13 @@ resultados
 
 ```
 
-Percebemos o modelo de redes neurais foi o que obteve a maior acurácia tanto dentro como fora (conjunto de validação). Dessa forma, o modelo de redes neurais foi o modelo usado para realizar as previsões do conjunto de teste.
+O modelo de redes neurais também levou bem menos tempo que o modelo de regressão com penalidade lasso para ser ajustado. Ainda, obteve a maior acurácia fora (conjunto de validação) e acurácia bastante elevada dentro apesar de não tão alta como no modelo de floresta aleatória.
 
+Como o objetivo desse projeto é predizer o número em um conjunto de dados nunca antes visto no modelo, a acurácia fora tem um peso maio que a dentro. Dessa forma, o modelo de redes neurais foi o escolhido para realizar as previsões do conjunto de teste.
+
+Ainda, como os modelos testados já obtiveram acurácia bastante satisfatória, foi considerado que não havia necessidade de se testar mais modelos diferentes ou variações dos apresentados.
+
+Para o conjunto de dados mnist, o modelo de redes neurais foi o melhor modelo, seguido pelo de floresta aleatória e por último o modelo de regressão logística com penalidade LASSO, sendo que o último não se mostrou um bom modelo tanto em tempo de processamento quanto em acurácia.
 
 ```{r, eval=FALSE}
 predicoes <- modelo_rn %>% predict(x_teste) %>% k_argmax() %>% as.integer
