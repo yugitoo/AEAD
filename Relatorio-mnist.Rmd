@@ -352,7 +352,7 @@ y_test <- to_categorical(y_treino[-ids], 10)
 
 
 
-```{r, eval=FALSE,results=FALSE}
+```{r, eval=TRUE,results=FALSE}
 # Rede Neural -------------------------------------------------------------
 # library(keras)
 
@@ -375,7 +375,7 @@ modelo_rn
 
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # segundo passo: especificacoes que controlam o algoritmo de estimacao
 modelo_rn %>%
   compile(loss = "categorical_crossentropy",   # funcao de custo
@@ -387,14 +387,14 @@ modelo_rn %>%
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # salvar o modelo
 save_model_hdf5(modelo_rn, "mnist_rn")
 ```
 
 
 
-```{r, eval=FALSE, results=FALSE}
+```{r, eval=TRUE, results=FALSE}
 # terceiro passo: ajustar o modelo (estimar os parametros)
 history <- modelo_rn %>%
   fit(x_train, # preditoras de treino    dados de entrada
@@ -418,13 +418,13 @@ history <- modelo_rn %>%
                              y_test))
 ```
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 saveRDS(history, "mnist_history.rds")
 
 ```
 
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("mnist_rn")
 # history <- readRds("mnist_history.rds")
@@ -461,6 +461,8 @@ resultados
 ```
 
 O modelo de redes neurais também levou bem menos tempo que o modelo de regressão com penalidade lasso para ser ajustado. Ainda, obteve a maior acurácia fora (conjunto de validação) e acurácia bastante elevada dentro apesar de não tão alta como no modelo de floresta aleatória.
+
+### Resultados
 
 Como o objetivo desse projeto é predizer o número em um conjunto de dados nunca antes visto no modelo, a acurácia fora tem um peso maio que a dentro. Dessa forma, o modelo de redes neurais foi o escolhido para realizar as previsões do conjunto de teste.
 
