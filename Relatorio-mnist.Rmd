@@ -20,64 +20,89 @@ Este trabalho consiste na aplicação de técnicas estatísticas abordadas no cu
 library(dplyr)
 library(glmnet) # tem as funcoes para lasso, ridge e elasticnet
 library(keras)
+library(randomForest)
 ```
 
 
-### Carregando os Bancos de dados
+<!-- ### Carregando os Bancos de dados -->
 
 ```{r}
 load("dados_mnist.rdata")
 load("dados_mnist_teste.rdata")
 ```
 
-
+O banco de dados é composto por:  
 x_treino: matriz com as 60000 imagens do conjunto de treino;  
 y_treino: vetor com os reais valores dos dígitos escritos nas imagens do conjunto de treino (etiquetas);  
 
-Cada linha da matriz x_treino é uma imagem. Aqui, cada imagem está representada como um vetor de dimensao 1x784. Cada coluna indica o tom de cinza do respectivo pixel da imagem (entre 0 - preto e 255 - branco). Para visualizar estes dados como imagem, primeiro você deve transformar a linha com 784 colunas em uma matriz 28x28 e fazer a seguinte operação para rotacionar a figura:
+Cada linha da matriz x_treino é uma imagem. Aqui, cada imagem está representada como um vetor de dimensao 1x784. Cada coluna indica o tom de cinza do respectivo pixel da imagem (entre 0 - preto e 255 - branco).
 
-```{r}
-matriz <- matrix(x_treino[1,], ncol = 28, byrow = TRUE)
+<!-- Para visualizar estes dados como imagem, primeiro você deve transformar a linha com 784 colunas em uma matriz 28x28 e fazer a seguinte operação para rotacionar a figura: -->
 
-imagem <- t(apply(matriz, 2, rev))
-```
+<!-- ```{r} -->
+<!-- matriz <- matrix(x_treino[1,], ncol = 28, byrow = TRUE) -->
 
-Em seguida, para visualizá-la graficamente, utilize o código abaixo.
+<!-- imagem <- t(apply(matriz, 2, rev)) -->
+<!-- ``` -->
 
-```{r}
-image(1:28, 1:28, imagem, col = gray((0:255)/255), 
-        xaxt = 'n', yaxt = 'n', xlab="", ylab="", 
-        main = (y_treino[1]))
-```
+<!-- Em seguida, para visualizá-la graficamente, utilize o código abaixo. -->
 
-O código e a figura abaixo mostram 36 figuras selecionadas aleatoriamente e suas etiquetas correspondentes.
+<!-- ```{r} -->
+<!-- image(1:28, 1:28, imagem, col = gray((0:255)/255),  -->
+<!--         xaxt = 'n', yaxt = 'n', xlab="", ylab="",  -->
+<!--         main = (y_treino[1])) -->
+<!-- ``` -->
 
-```{r}
-par(mfcol = c(6,6))
-par(mar = c(0, 0, 2, 0), xaxs = 'i', yaxs = 'i') 
+<!-- O código e a figura abaixo mostram 36 figuras selecionadas aleatoriamente e suas etiquetas correspondentes. -->
 
-set.seed(12)
+<!-- ```{r} -->
+<!-- par(mfcol = c(6,6)) -->
+<!-- par(mar = c(0, 0, 2, 0), xaxs = 'i', yaxs = 'i')  -->
 
-indices <- sample(nrow(x_treino), 36)
-for (idx in indices) {
-  im <- matrix(x_treino[idx,], nrow=28, byrow = TRUE)
-  im <- t(apply(im, 2, rev))
-  image(1:28, 1:28, im, col = gray((0:255)/255), 
-        xaxt = 'n', yaxt = 'n', xlab="", ylab="", 
-        main = (y_treino[idx]))
-}
-```
-Lasso norma 1 e ridge norma 2
-Lasso selecao de var
-regularizacao, pq soma lambda*norma ao erro dentro
+<!-- set.seed(12) -->
 
+<!-- indices <- sample(nrow(x_treino), 36) -->
+<!-- for (idx in indices) { -->
+<!--   im <- matrix(x_treino[idx,], nrow=28, byrow = TRUE) -->
+<!--   im <- t(apply(im, 2, rev)) -->
+<!--   image(1:28, 1:28, im, col = gray((0:255)/255),  -->
+<!--         xaxt = 'n', yaxt = 'n', xlab="", ylab="",  -->
+<!--         main = (y_treino[idx])) -->
+<!-- } -->
+<!-- ``` -->
+
+### Objetivo
+
+O objetivo desta análise é propor um modelo que consiga realizar boas predições para a qual número corresponde cada uma das imagens.
+
+### Técnicas
+
+Para esse projeto serão usados modelos lineares com regularização, modelos baseados em árvores, e redes
+neurais.
+
+Para comparar os modelos entre si,será utilizada a acurácia e ao final de cada método testado, será adicionado o resultado a uma tabela comparativa.
+
+Por motivos de tempo de processamento, apenas o modelo escolhido de cada categoria será apresentado no relatório.
+
+### Parâmetros
+
+Para o ajuste do modelo, foi definido que o conjunto de treino seria dividido em conjunto de treino e validação
+na proporção 7,5:1,5, ou seja, 75% do conjunto originalmente de treino foi usado para validação. Foi definida
+também uma semente por questão de reprodutibilidade (12345).
 
 ### Lasso
-Vamos tentar rodar um LASSO com validação cruzada no conjunto de treino para definir o parâmetro lambda de penalização.
 
-Foi usado o lambda que minimiza o erro da validacao cruzada.
+Para criar um modelo de regressão com a penalização lasso, foi utilizada a biblioteca glmnet. Com ela, dentro
+da amostra de treino, foi ajustado o modelo de classificação com penalização lasso utizando validação cruzada.
+Em seguida, foi testado o modelo obtido no conjunto de validação e calculado o respectivo erro dentro e fora
 
-Alpha =1 simboliza lasso
+Para o ajuste do modelo, inicialmente testou-se os definir para a função os valores (0.01, 0.1, 1, 2, 10, 25, 50, 75, 100) e em seguida testou-se definir que o modelo escolhesse 30 lambdas diferentes. 
+
+Existem dois lambdas que são popularmentes usados: o que minimiza o erro gerado pela validação cruzada e o no qual o erro não ultrapassa um desvio padrão do melhor modelo. Com isso, foram testados modelos com cada um dos lambdas e calculados os erros dentro e fora respectivos de cada um.
+
+O modelo cujos valores de lambda foram escolhidos pelo cv.glmnet apresentou resultados significativamente melhores.
+
+O cálculo de previsão foi realizado diretamente do modelo resultante da validação cruzada conforme recomendado na documentação do pacote glmnet por questão de convergência e otimização.
 
 ```{r}
 # y_treino <- factor(y_treino)
@@ -96,15 +121,14 @@ ids <- sample(nrow(db_digitos), size = .75*nrow(db_digitos), replace = FALSE)
 ```
 
 
-Foi testado permitir que a função cv.glmnet que ajusta modelo de regressão com validação cruzada usando o parâmetro alpha=1 correspondente a penalidade Lasso e ajustou-se tanto 30 como 50 lambdas diferentes.
 
 ```{r, eval=TRUE}
 cv_lasso <- cv.glmnet(X[ids,], as.factor(db_digitos$y_treino[ids]), family = "multinomial", alpha = 1,
-                      type.measure = "class", trace.it = TRUE, lambda = c(0.01, 0.1, 1, 2, 10, 25, 50, 75, 100), maxit = 10000, nfolds = 10)
+                      type.measure = "class", trace.it = TRUE, nlambda = 30, maxit = 10000, nfolds = 10)
 
 cv_lasso$lambda.min
 cv_lasso$lambda.1se
-# plot(cv_lasso, cex.lab = 1.3)
+
 
 # saveRDS(cv_lasso, "mnist_lasso2.rds")
 ```
@@ -117,7 +141,7 @@ cv_lasso$lambda.1se
 ```
 
 
-```{r,eval=FALSE}
+```{r,eval=TRUE}
 saveRDS(cv_lasso, "mnist_lasso.rds")
 ```
 
@@ -150,13 +174,13 @@ y_lasso_dentro1.2 <- predict(cv_lasso, newx = X[ids,],
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 # comparativo: observado vs predito (dentro da amostra)
 (tabela_tr <- table(predito = y_lasso_dentro, observado = y_treino[ids]))
 
 ```
 
-
+<!-- É possível perceber que os maiores erros ocorrem em -->
 ```{r}
 #
 y_lasso_fora <- predict(cv_lasso, newx = X[-ids,],
@@ -208,9 +232,15 @@ resultados
 
 
 ### Modelo de Árvores
+
+Foi escolhido o modelo de Floresta Aleatória já que dessa forma existe variabilidade na escolha das variáveis explicativas e na escolha das observações para a construção de cada árvore. Essa variabilidade por sua vez pode levar a uma melhor predição no conjunto de validação e no de teste.
+
+Para realizar o ajuste do modelo, foi utilizado a função randomForest do pacote randomForest.
+
+
 ```{r}
-library(tree) # funcoes para estimar arvore de reg/class
-library(randomForest) # funcoes para estimar floresta aleatoria
+# library(tree) # funcoes para estimar arvore de reg/class
+# library(randomForest) # funcoes para estimar floresta aleatoria
 
 ```
 
@@ -235,7 +265,7 @@ importance(modelo_rf)
 varImpPlot(modelo_rf)
 ```
 
-A seguir, podemos ver as cinco estações mais importantes e as cinco menos importantes para a predição.
+A seguir, podemos ver OS cinco pixels mais importantes e as cinco menos importantes para a predição.
 
 ```{r}
 # importancia das variaveis
@@ -245,11 +275,13 @@ tail(a %>% arrange(desc(MeanDecreaseGini)),5)
 rm(a)
 ```
 
-Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cada estação.
+Ainda, é possível vizualizar melhor no gráfico a seguir a importância de cada pixel.
 
 ```{r}
 varImpPlot(modelo_rf)
 ```
+
+Percebemos a existência de pixels cuja contribuição para a previsão é inexistente.
 
 ```{r}
 y_rf_dentro<- predict(modelo_rf, db_digitos[ids,-1],type="class")
@@ -277,10 +309,16 @@ resultados
 ```
 
 ### Redes neurais
-Como temos mais de uma classificação, foi utilizado a função softmax como função de ativação.
+
+Para o modelo de redes neurais, foi considerado um modelo com duas camadas ocultas com 256 e 128 unidades respectivamente com função de ativação ReLU.
+
+Como temos mais de uma classificação, foi utilizada a função softmax como função de ativação na camada de saída.
+
+Ainda, foi considerada supressão de 40%, 30 epochs e tamanho de batch 128 de forma a tentar otimizar o tempo de processamento do modelo.
+
 
 ```{r}
-library(keras)
+# library(keras)
 
 X <- model.matrix(db_digitos[,1] ~ .,
                   data = db_digitos[,-1]) # X deve ser uma matrix
@@ -306,14 +344,11 @@ y_test <- to_categorical(y_treino[-ids], 10)
 
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE,results=FALSE}
 # Rede Neural -------------------------------------------------------------
 # library(keras)
 
 # primeiro passo: definir a estrutura que descreve a rede neural
-# vamos considerar uma rede com uma unica camada oculta
-# contendo 50 unidades e funcao de ativacao ReLU
-# dropout layer de 40%
 # a ultima camada tem somente uma unidade
 
 modelo_rn <- keras_model_sequential()
@@ -323,7 +358,7 @@ modelo_rn %>%
               input_shape = ncol(x_train)) %>% # dimensao da entrada
   layer_dropout(rate = 0.4) %>% # taxa de nos nos suprime em cada etapa
   layer_dense(units = 128, activation = 'relu') %>%
-  layer_dropout(rate = 0.3) %>%
+  layer_dropout(rate = 0.4) %>%
   layer_dense(units = 10, # camadas de saida com uma unica unidade pq eh um modelo de classificacao com 10 categorias
               activation = "softmax") 
 
@@ -332,7 +367,7 @@ modelo_rn
 
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # segundo passo: especificacoes que controlam o algoritmo de estimacao
 modelo_rn %>%
   compile(loss = "categorical_crossentropy",   # funcao de custo
@@ -349,9 +384,9 @@ modelo_rn %>%
 save_model_hdf5(modelo_rn, "mnist_rn")
 ```
 
-Ajustando o tamanho do batch para que a velocidade de cada um e a do final sejam semelhantes. 32 mostrou-se pequeno, entao aumentou
 
-```{r, eval=FALSE}
+
+```{r, eval=TRUE, results=FALSE}
 # terceiro passo: ajustar o modelo (estimar os parametros)
 history <- modelo_rn %>%
   fit(x_train, # preditoras de treino    dados de entrada
@@ -375,13 +410,13 @@ history <- modelo_rn %>%
                              y_test))
 ```
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 saveRDS(history, "mnist_history.rds")
 
 ```
 
 
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("mnist_rn")
 # history <- readRds("mnist_history.rds")
@@ -402,11 +437,11 @@ y_rn_fora <- modelo_rn %>% predict(x_test) %>% k_argmax() %>% as.integer()
 ```
 
 
-```{r}
-# acuracia
-rn_ac_dentro <- mean(y_rn_dentro == db_digitos$y_treino[ids])
-rn_ac_fora <- mean(y_rn_fora == db_digitos$y_treino[-ids])
-```
+<!-- ```{r} -->
+<!-- # acuracia -->
+<!-- rn_ac_dentro <- mean(y_rn_dentro == db_digitos$y_treino[ids]) -->
+<!-- rn_ac_fora <- mean(y_rn_fora == db_digitos$y_treino[-ids]) -->
+<!-- ``` -->
 
 
 ```{r}
@@ -417,32 +452,8 @@ resultados
 
 ```
 
-### Avaliação dos modelos
+Percebemos o modelo de redes neurais foi o que obteve a maior acurácia tanto dentro como fora (conjunto de validação). Dessa forma, o modelo de redes neurais foi o modelo usado para realizar as previsões do conjunto de teste.
 
-Para avaliar os modelos, será utilizada a acurácia (erro total de classificação).
-
-
-
-1- Modelos lineares com regularização 
-
-2- Modelos baseados em árvores (bagging, florestas aleatórias ou boosting) 
-
-3- Redes neurais 
-
-
-
-### Conjunto de teste
-
-Posteriormente, vamos disponibilizar um conjunto de dados de teste, que estará organizado no mesmo formato que o conjunto x_treino. Entretanto, para este conjunto de dados de teste, você não terá acesso às verdadeiras etiquetas de cada imagem. Sua tarefa é estimar um modelo preditivo, realizar predições para as observações do conjunto de teste e submeter um arquivo .csv com o resultado. A medida utilizada para a avaliação dos resultados será a acurácia, isto é, a proporção de imagens corretamente classificadas.
-Submissão dos resultados
-
-Em posse do arquivo de dados de teste, use o código abaixo para criar o arquivo para submissão dos seus resultados. Para que funcione, você deverá salvar a predição das imagens de teste em um vetor chamado predicoes. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
-
-
-
-Submissão dos resultados
-
-Em posse do arquivo de dados de teste, use o código abaixo para criar o arquivo para submissão dos seus resultados. Para que funcione, você deverá salvar a predição das imagens de teste em um vetor chamado predicoes. Em seguida, altere o nome do arquivo abaixo, para que tenha seu nome e seu número USP. Arquivos enviados seguindo uma especificação diferente da apresentada abaixo serão desconsiderados.
 
 ```{r}
 predicoes <- modelo_rn %>% predict(x_teste) %>% k_argmax() %>% as.integer
