@@ -37,39 +37,6 @@ y_treino: vetor com os reais valores dos dígitos escritos nas imagens do conjun
 
 Cada linha da matriz x_treino é uma imagem. Aqui, cada imagem está representada como um vetor de dimensao 1x784. Cada coluna indica o tom de cinza do respectivo pixel da imagem (entre 0 - preto e 255 - branco).
 
-<!-- Para visualizar estes dados como imagem, primeiro você deve transformar a linha com 784 colunas em uma matriz 28x28 e fazer a seguinte operação para rotacionar a figura: -->
-
-<!-- ```{r} -->
-<!-- matriz <- matrix(x_treino[1,], ncol = 28, byrow = TRUE) -->
-
-<!-- imagem <- t(apply(matriz, 2, rev)) -->
-<!-- ``` -->
-
-<!-- Em seguida, para visualizá-la graficamente, utilize o código abaixo. -->
-
-<!-- ```{r} -->
-<!-- image(1:28, 1:28, imagem, col = gray((0:255)/255),  -->
-<!--         xaxt = 'n', yaxt = 'n', xlab="", ylab="",  -->
-<!--         main = (y_treino[1])) -->
-<!-- ``` -->
-
-<!-- O código e a figura abaixo mostram 36 figuras selecionadas aleatoriamente e suas etiquetas correspondentes. -->
-
-<!-- ```{r} -->
-<!-- par(mfcol = c(6,6)) -->
-<!-- par(mar = c(0, 0, 2, 0), xaxs = 'i', yaxs = 'i')  -->
-
-<!-- set.seed(12) -->
-
-<!-- indices <- sample(nrow(x_treino), 36) -->
-<!-- for (idx in indices) { -->
-<!--   im <- matrix(x_treino[idx,], nrow=28, byrow = TRUE) -->
-<!--   im <- t(apply(im, 2, rev)) -->
-<!--   image(1:28, 1:28, im, col = gray((0:255)/255),  -->
-<!--         xaxt = 'n', yaxt = 'n', xlab="", ylab="",  -->
-<!--         main = (y_treino[idx])) -->
-<!-- } -->
-<!-- ``` -->
 
 ### Objetivo
 
@@ -105,16 +72,15 @@ O modelo cujos valores de lambda foram escolhidos pelo cv.glmnet apresentou resu
 O cálculo de previsão foi realizado diretamente do modelo resultante da validação cruzada conforme recomendado na documentação do pacote glmnet por questão de convergência e otimização.
 
 ```{r}
-# y_treino <- factor(y_treino)
+# Parametros e pre-definicoes
+
+
 db_digitos <- data.frame(y_treino=y_treino,x_treino)
 
 set.seed(12345)
 X <- model.matrix(db_digitos[,1] ~ .,
                   data = db_digitos[,-1])[,-1] # X deve ser uma matrix sem intercepto
-```
 
-
-```{r}
 # separando 75% dos dados para treino
 ids <- sample(nrow(db_digitos), size = .75*nrow(db_digitos), replace = FALSE)
 
@@ -260,13 +226,6 @@ saveRDS(modelo_rf, "mnist_rf.rds")
 modelo_rf <- readRDS("mnist_rf.rds")
 ```
 
-
-<!-- ```{r} -->
-<!-- # importancia das variaveis -->
-<!-- importance(modelo_rf) -->
-<!-- varImpPlot(modelo_rf) -->
-<!-- ``` -->
-
 A seguir, podemos ver os cinco pixels mais importantes e as cinco menos importantes para a predição.
 
 ```{r}
@@ -322,14 +281,14 @@ Para o modelo de redes neurais, foi considerado um modelo com duas camadas ocult
 
 Como temos mais de uma classificação, foi utilizada a função softmax como função de ativação na camada de saída.
 
-Ainda, foi considerada supressão de 40%, 30 epochs e tamanho de batch 128 de forma a tentar otimizar o tempo de processamento do modelo.
+Ainda, foi considerada supressão de 40%, 40 epochs e tamanho de batch 128 de forma a tentar otimizar o tempo de processamento do modelo.
 
 
 ```{r}
 # library(keras)
 
 X <- model.matrix(db_digitos[,1] ~ .,
-                  data = db_digitos[,-1]) # X deve ser uma matrix
+                  data = db_digitos[,-1])[,-1] # X deve ser uma matrix
 
 # reshape
 # library(Corbi)
@@ -406,13 +365,6 @@ history <- modelo_rn %>%
                      # nesse caso, cada epoca tem
                      # num de obs/batch passos pra completar uma epoca 
       verbose=1,
-  #     callback = callback_early_stopping(monitor = "val_loss",
-  # min_delta = 0,
-  # patience = 20,
-  # verbose = 0,
-  # mode = c("auto"),
-  # baseline = NULL,
-  # restore_best_weights = FALSE),
       # dados de validacao para avaliar o progresso do modelo
       validation_data = list(x_test,
                              y_test))
@@ -427,7 +379,7 @@ saveRDS(history, "mnist_history.rds")
 ```{r, eval=FALSE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("mnist_rn")
-# history <- readRds("mnist_history.rds")
+history <- readRDS("mnist_history.rds")
 ```
 
 
@@ -437,12 +389,12 @@ rn_ac_fora <- modelo_rn %>% evaluate(x_test, y_test)
 ```
 
 
-```{r}
-# predicao
+<!-- ```{r} -->
+<!-- # predicao -->
 
-y_rn_dentro <- modelo_rn %>% predict(x_train) %>% k_argmax() %>% as.integer()
-y_rn_fora <- modelo_rn %>% predict(x_test) %>% k_argmax() %>% as.integer()
-```
+<!-- y_rn_dentro <- modelo_rn %>% predict(x_train) %>% k_argmax() %>% as.integer() -->
+<!-- y_rn_fora <- modelo_rn %>% predict(x_test) %>% k_argmax() %>% as.integer() -->
+<!-- ``` -->
 
 
 <!-- ```{r} -->
@@ -471,6 +423,7 @@ Ainda, como os modelos testados já obtiveram acurácia bastante satisfatória, 
 Para o conjunto de dados mnist, o modelo de redes neurais foi o melhor modelo, seguido pelo de floresta aleatória e por último o modelo de regressão logística com penalidade LASSO, sendo que o último não se mostrou um bom modelo tanto em tempo de processamento quanto em acurácia.
 
 ```{r, eval=FALSE}
+x_teste <- x_teste/ 255
 predicoes <- modelo_rn %>% predict(x_teste) %>% k_argmax() %>% as.integer
 ```
 
