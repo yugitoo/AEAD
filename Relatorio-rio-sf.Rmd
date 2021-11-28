@@ -311,7 +311,7 @@ Foram considerados 40% de supressão, 150 epochs e tamanho de batch = 32.
 
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE, results=FALSE}
 # Rede Neural -------------------------------------------------------------
 # library(keras)
 
@@ -329,7 +329,7 @@ modelo_rn
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # segundo passo: especificacoes que controlam o algoritmo de estimacao
 modelo_rn %>%
   compile(loss = "mse",   # funcao de custo
@@ -360,7 +360,7 @@ save_model_hdf5(modelo_rn, "sf_rn")
 
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE, results=FALSE}
 # terceiro passo: ajustar o modelo (estimar os parametros)
 history <- modelo_rn %>%
   fit(X[ids,], # preditoras de treino    dados de entrada
@@ -389,10 +389,40 @@ saveRDS(history, "sf_history.rds")
 
 ```
 
+```{r, eval=TRUE}
+# o grafico abaixo mostra o MAE
+# para os dados de treino e teste
+plot(history)
+# plot(history2,xlim(0,150))
+```
 
-```{r, eval=FALSE}
+```{r}
+# predicao
+y_rn_dentro <- predict(modelo_rn, X[ids, ])
+y_rn_fora <- predict(modelo_rn, X[-ids, ])
+
+```
+
+Podemos observar os resultados a seguir.
+
+
+```{r}
+# calculo do erro absoluto medio
+erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - y_rn_dentro))
+erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora))
+
+resultados <- rbind(resultados,
+                     data.frame(modelo = "Rede Neural",
+                                erro_dentro = erro_dentro_rn,
+                                erro_fora=erro_fora_rn))
+
+```
+
+
+
+```{r, eval=TRUE, results=FALSE}
 # Rede Neural -------------------------------------------------------------
-library(keras)
+# library(keras)
 
 # primeiro passo: definir a estrutura que descreve a rede neural
 # a ultima camada tem somente uma unidade
@@ -412,7 +442,7 @@ modelo_rn2
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # segundo passo: especificacoes que controlam o algoritmo de estimacao
 modelo_rn2 %>%
   compile(loss = "mse",   # funcao de custo
@@ -423,7 +453,7 @@ modelo_rn2 %>%
 # python correspondente que foi criada
 ```
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # salvar o modelo
 save_model_hdf5(modelo_rn2, "sf_rn2")
 ```
@@ -443,7 +473,7 @@ save_model_hdf5(modelo_rn2, "sf_rn2")
 
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE, results=FALSE}
 # terceiro passo: ajustar o modelo (estimar os parametros)
 history2 <- modelo_rn2 %>%
   fit(X[ids,], # preditoras de treino    dados de entrada
@@ -467,16 +497,13 @@ history2 <- modelo_rn2 %>%
 ```
 
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 saveRDS(history2, "sf_history2.rds")
 
 ```
 
 
-
-
-
-```{r, eval=TRUE}
+```{r, eval=FALSE}
 # carregar o modelo
 modelo_rn <- load_model_hdf5("sf_rn")
 history <- readRDS("sf_history.rds")
@@ -490,15 +517,12 @@ history2 <- readRDS("sf_history2.rds")
 # o grafico abaixo mostra o MAE
 # para os dados de treino e teste
 # plot(history, xlim(0,150))
-# plot(history2,xlim(0,150))
+plot(history2,xlim(0,150))
 ```
 
 
 ```{r}
 # predicao
-y_rn_dentro <- predict(modelo_rn, X[ids, ])
-y_rn_fora <- predict(modelo_rn, X[-ids, ])
-
 y_rn_dentro2 <- predict(modelo_rn2, X[ids, ])
 y_rn_fora2 <- predict(modelo_rn2, X[-ids, ])
 
@@ -509,18 +533,9 @@ Podemos observar os resultados a seguir.
 
 ```{r}
 # calculo do erro absoluto medio
-erro_dentro_rn <- mean(abs (treino_sf$Y[ids] - y_rn_dentro))
-erro_fora_rn <- mean(abs (treino_sf$Y[-ids] - y_rn_fora))
 
 erro_dentro_rn2 <- mean(abs (treino_sf$Y[ids] - y_rn_dentro2))
 erro_fora_rn2 <- mean(abs (treino_sf$Y[-ids] - y_rn_fora2))
-
-
-
-resultados <- rbind(resultados,
-                     data.frame(modelo = "Rede Neural",
-                                erro_dentro = erro_dentro_rn,
-                                erro_fora=erro_fora_rn))
 
 (resultados <- rbind(resultados,
                      data.frame(modelo = "Rede Neural 2",
